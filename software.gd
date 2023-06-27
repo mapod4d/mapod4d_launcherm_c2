@@ -29,8 +29,8 @@ var c = 0
 # ----- private variables
 
 # ----- onready variables
-@onready var info = $Info
-@onready var info1 = $Info1
+@onready var info = $MarginContainer/VBoxContainer/Info
+@onready var info1 = $MarginContainer/VBoxContainer/Info1
 
 # ----- optional built-in virtual _init method
 
