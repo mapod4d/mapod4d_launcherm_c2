@@ -23,6 +23,8 @@ enum STATUS_LOCAL {
 	
 	UPDATER_DW_INFO_REQUESTED,
 	
+	SW_INFO_REQUESTED,
+	SW_INFO_WAIT,
 	SW_DW_INFO_REQUESTED,
 	SW_DW_INFO_WAIT,
 	SW_DW_BRICKS,
@@ -109,6 +111,9 @@ func _ready():
 
 	software.download_software_requested.connect(
 			_on_download_software_requested)
+	software.info_software_requested.connect(
+			_on_info_software_requested)
+
 	metaverse.download_metaverse_requested.connect(
 			_on_download_metaverse_requested)
 	
@@ -120,6 +125,13 @@ func _process(delta):
 	# status MACHINE
 	if _status != STATUS_LOCAL.WAIT:
 		match _status:
+			## simple file info request
+			STATUS_LOCAL.SW_INFO_REQUESTED:
+				sw_info_requested()
+			## simple file info request wait
+			STATUS_LOCAL.SW_INFO_WAIT:
+				_child_update_download_info()
+			## file info request to download
 			STATUS_LOCAL.SW_DW_INFO_REQUESTED:
 				sw_dw_info_requested()
 			STATUS_LOCAL.SW_DW_INFO_WAIT:
@@ -184,13 +196,18 @@ func _reset_info_and_wait():
 
 	## metaverse download vars
 	_mapod4d_ver = null
+	print("WWWWWWWWWWWWWWWWAAAAAAAAAAAAAAAAAIIIIIIIIIITTTTTTTTTTTTT")
 	_set_status(STATUS_LOCAL.WAIT)
 
 
-## send info to child
+## set new status
 func _set_status(status):
 	_status = status
 
+
+## return current status
+func _get_status():
+	return _status
 
 ## send info to child
 func _child_update_msg(msg):
@@ -223,41 +240,24 @@ func _child_update_download_info():
 				_which.update_download_info(data)
 
 
-func _mt_dw_completed():
-	_child_update_msg("METAVERSE DOWNLOAD COMPLETED")
-	_reset_info_and_wait()
-
-
-## ENTRY 0 start metaverse download
-func _on_download_metaverse_requested(
-		software_name, mapod4d_ver, sysop, tmp_dir, destination, which):
-	# https://sv001.mapod4d.it/api/multiverse/lastmetaverse/metaversetest/002000000002
-	_op_type = OP_TYPE_LOCAL.MT_DW
-	_software_name = software_name
-	_mapod4d_ver = mapod4d_ver
-	_sysop = sysop
-	_tmp_dir = tmp_dir
-	_destination = destination
-	_which = which
-	_set_status(STATUS_LOCAL.MT_DW_INFO_REQUESTED)
-
-
-## download metaverse requested
-func mt_dw_info_requested():
-	_url = MULTIVSVR + "/api/multiverse/lastmetaverse/"
-	_url += _software_name + "/" + _mapod4d_ver + "?format=json"
-	print(_url)
-	var headers = ["Content-Type: application/json"]
-	_download_file = _tmp_dir + "/" + BUF_NAME
-	http_sw_info_rq.request(_url, headers, HTTPClient.METHOD_GET)
-	_set_status(STATUS_LOCAL.SW_DW_INFO_WAIT)
-
-
-## SOFTWARE SECTION
+## SOFTWARES SECTION
 
 func _sw_dw_completed():
 	_child_update_msg("SOFTWARE DOWNLOAD COMPLETED")
 	_reset_info_and_wait()
+
+
+## ENTRY 0 start software simple info request
+func _on_info_software_requested(
+		software_name, ext, sysop, tmp_dir, destination, which):
+	_op_type = OP_TYPE_LOCAL.SW_DW
+	_software_name = software_name
+	_ext = ext
+	_sysop = sysop
+	_tmp_dir = tmp_dir
+	_destination = destination
+	_which = which
+	_set_status(STATUS_LOCAL.SW_INFO_REQUESTED)
 
 
 ## ENTRY 0 start software download
@@ -273,6 +273,11 @@ func _on_download_software_requested(
 	_set_status(STATUS_LOCAL.SW_DW_INFO_REQUESTED)
 
 
+## simple download software requested
+func sw_info_requested():
+	sw_dw_info_requested()
+
+
 ## download software requested
 func sw_dw_info_requested():
 	_url = MULTIVSVR + "/api/software/"
@@ -281,7 +286,11 @@ func sw_dw_info_requested():
 	var headers = ["Content-Type: application/json"]
 	_download_file = _tmp_dir + "/" + BUF_NAME
 	http_sw_info_rq.request(_url, headers, HTTPClient.METHOD_GET)
-	_set_status(STATUS_LOCAL.SW_DW_INFO_WAIT)
+	if _get_status() == STATUS_LOCAL.SW_DW_INFO_REQUESTED:
+		_set_status(STATUS_LOCAL.SW_DW_INFO_WAIT)
+	else:
+		## _get_status() == STATUS_LOCAL.SW_INFO_REQUESTED:
+		_set_status(STATUS_LOCAL.SW_INFO_WAIT)
 
 
 ## info software download ended
@@ -298,14 +307,18 @@ func _on_sw_dw_info_completed(result, response_code, headers, body):
 				_child_update_msg("ERROR " + _info.detail)
 				_reset_info_and_wait()
 			else:
-				print(_info.bricks)
-				_dw_name = _info.link + "_"
-				_current_brick = 0
-				# SOLO DEBUG
-				#_info.bricks = 1
-				#_info.compressed = false
-				# SOLO DEBUG FINE
-				_set_status(STATUS_LOCAL.SW_DW_BRICKS)
+				if _get_status() == STATUS_LOCAL.SW_DW_INFO_WAIT:
+					print(_info.bricks)
+					_dw_name = _info.link + "_"
+					_current_brick = 0
+					# SOLO DEBUG
+					#_info.bricks = 1
+					#_info.compressed = false
+					# SOLO DEBUG FINE
+					_set_status(STATUS_LOCAL.SW_DW_BRICKS)
+				if _get_status() == STATUS_LOCAL.SW_INFO_WAIT:
+					print(_info)
+					_reset_info_and_wait()
 		else:
 			_child_update_msg("ERROR API NOT FOUND")
 			_reset_info_and_wait()
@@ -348,8 +361,39 @@ func _on_sw_dw_brick_completed(result, response_code, headers, body):
 		_reset_info_and_wait()
 
 
-## COMMON SECTION
+## METAVERSES SECTION
 
+func _mt_dw_completed():
+	_child_update_msg("METAVERSE DOWNLOAD COMPLETED")
+	_reset_info_and_wait()
+
+
+## ENTRY 0 start metaverse download
+func _on_download_metaverse_requested(
+		software_name, mapod4d_ver, sysop, tmp_dir, destination, which):
+	# https://sv001.mapod4d.it/api/multiverse/lastmetaverse/metaversetest/002000000002
+	_op_type = OP_TYPE_LOCAL.MT_DW
+	_software_name = software_name
+	_mapod4d_ver = mapod4d_ver
+	_sysop = sysop
+	_tmp_dir = tmp_dir
+	_destination = destination
+	_which = which
+	_set_status(STATUS_LOCAL.MT_DW_INFO_REQUESTED)
+
+
+## download metaverse requested
+func mt_dw_info_requested():
+	_url = MULTIVSVR + "/api/multiverse/lastmetaverse/"
+	_url += _software_name + "/" + _mapod4d_ver + "?format=json"
+	print(_url)
+	var headers = ["Content-Type: application/json"]
+	_download_file = _tmp_dir + "/" + BUF_NAME
+	http_sw_info_rq.request(_url, headers, HTTPClient.METHOD_GET)
+	_set_status(STATUS_LOCAL.SW_DW_INFO_WAIT)
+
+
+## COMMON SECTION
 
 func _merge_and_move():
 	_dir = DirAccess.open(_tmp_dir)

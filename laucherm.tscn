@@ -1,11 +1,28 @@
-[gd_scene load_steps=8 format=3 uid="uid://2qwxe8qw35xf"]
+[gd_scene load_steps=11 format=3 uid="uid://bj2y0bm2xe0hy"]
 
-[ext_resource type="Script" path="res://downloader.gd" id="1_fgm3i"]
-[ext_resource type="Script" path="res://software.gd" id="2_bhfjb"]
-[ext_resource type="Script" path="res://metaverse.gd" id="3_arklj"]
+[ext_resource type="Script" path="res://launcherm.gd" id="1_ppn4d"]
+[ext_resource type="Script" path="res://software.gd" id="2_uibrg"]
+[ext_resource type="Script" path="res://metaverse.gd" id="3_cnmp7"]
+[ext_resource type="StyleBox" uid="uid://dgxx5r46100nm" path="res://styles/button_normal.tres" id="3_ruhbg"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_83g86"]
+bg_color = Color(0, 0, 0, 1)
+border_width_left = 4
+border_width_right = 4
+border_color = Color(0, 0, 0, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_xavjq"]
+bg_color = Color(0.470588, 0.470588, 0.470588, 1)
+border_width_left = 4
+border_width_right = 4
+border_color = Color(0.470588, 0.470588, 0.470588, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_24f7s"]
-bg_color = Color(0.34902, 0.34902, 0.34902, 1)
+bg_color = Color(0, 0, 0, 1)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tvb7f"]
 bg_color = Color(0, 0, 0, 1)
@@ -16,14 +33,14 @@ bg_color = Color(0.384314, 0.384314, 0.384314, 1)
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_apn5j"]
 bg_color = Color(0, 0, 0, 1)
 
-[node name="Downloader" type="Control"]
+[node name="Launcherm" type="Control"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_fgm3i")
+script = ExtResource("1_ppn4d")
 
 [node name="TabContainer" type="TabContainer" parent="."]
 layout_mode = 1
@@ -32,11 +49,13 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_styles/tab_selected = SubResource("StyleBoxFlat_83g86")
+theme_override_styles/tab_unselected = SubResource("StyleBoxFlat_xavjq")
 
 [node name="Software" type="Panel" parent="TabContainer"]
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_24f7s")
-script = ExtResource("2_bhfjb")
+script = ExtResource("2_uibrg")
 
 [node name="MarginContainer" type="MarginContainer" parent="TabContainer/Software"]
 layout_mode = 1
@@ -49,6 +68,13 @@ grow_vertical = 2
 [node name="VBoxContainer" type="VBoxContainer" parent="TabContainer/Software/MarginContainer"]
 layout_mode = 2
 
+[node name="Titolo" type="Label" parent="TabContainer/Software/MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "TTTTT"
+
+[node name="Logo" type="TextureRect" parent="TabContainer/Software/MarginContainer/VBoxContainer"]
+layout_mode = 2
+
 [node name="Info" type="Label" parent="TabContainer/Software/MarginContainer/VBoxContainer"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.909804, 0.909804, 0.909804, 1)
@@ -58,19 +84,29 @@ theme_override_styles/normal = SubResource("StyleBoxFlat_tvb7f")
 [node name="Info1" type="RichTextLabel" parent="TabContainer/Software/MarginContainer/VBoxContainer"]
 layout_mode = 2
 
-[node name="CheckInfo" type="Button" parent="TabContainer/Software/MarginContainer/VBoxContainer"]
+[node name="MarginContainer" type="MarginContainer" parent="TabContainer/Software/MarginContainer/VBoxContainer"]
 layout_mode = 2
+theme_override_constants/margin_left = 140
+theme_override_constants/margin_right = 140
+
+[node name="VBoxContainer" type="VBoxContainer" parent="TabContainer/Software/MarginContainer/VBoxContainer/MarginContainer"]
+layout_mode = 2
+
+[node name="CheckInfo" type="Button" parent="TabContainer/Software/MarginContainer/VBoxContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_styles/normal = ExtResource("3_ruhbg")
 text = "Check Info"
 
-[node name="Download" type="Button" parent="TabContainer/Software/MarginContainer/VBoxContainer"]
+[node name="Download" type="Button" parent="TabContainer/Software/MarginContainer/VBoxContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
+theme_override_styles/normal = ExtResource("3_ruhbg")
 text = "Download"
 
 [node name="Metaverse" type="Panel" parent="TabContainer"]
 visible = false
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_spad7")
-script = ExtResource("3_arklj")
+script = ExtResource("3_cnmp7")
 
 [node name="Download" type="Button" parent="TabContainer/Metaverse"]
 layout_mode = 0
@@ -114,6 +150,6 @@ accept_gzip = false
 
 [node name="HTTPMTRequestDownload" type="HTTPRequest" parent="."]
 
-[connection signal="pressed" from="TabContainer/Software/MarginContainer/VBoxContainer/CheckInfo" to="TabContainer/Software" method="_on_check_info_pressed"]
-[connection signal="pressed" from="TabContainer/Software/MarginContainer/VBoxContainer/Download" to="TabContainer/Software" method="_on_download_pressed"]
+[connection signal="pressed" from="TabContainer/Software/MarginContainer/VBoxContainer/MarginContainer/VBoxContainer/CheckInfo" to="TabContainer/Software" method="_on_check_info_pressed"]
+[connection signal="pressed" from="TabContainer/Software/MarginContainer/VBoxContainer/MarginContainer/VBoxContainer/Download" to="TabContainer/Software" method="_on_download_pressed"]
 [connection signal="pressed" from="TabContainer/Metaverse/Download" to="TabContainer/Metaverse" method="_on_download_pressed"]

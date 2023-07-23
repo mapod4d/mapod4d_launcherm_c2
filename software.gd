@@ -16,6 +16,8 @@ extends Panel
 # ----- signals
 signal download_software_requested(
 		software_name, ext, sysop, tmp_dir, destination, which)
+signal info_software_requested(
+		software_name, ext, sysop, tmp_dir, destination, which)
 
 # ----- enums
 
@@ -84,4 +86,13 @@ func _on_download_pressed():
 
 
 func _on_check_info_pressed():
-	pass
+	info.text = ""
+	emit_signal(
+			"info_software_requested",
+			"softwaretest",
+			".exe",
+			"L00",
+			"files/tmp",
+			"files/test_merged",
+			self
+	)
