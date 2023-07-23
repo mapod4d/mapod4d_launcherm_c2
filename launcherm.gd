@@ -21,8 +21,6 @@ extends Control
 enum STATUS_LOCAL {
 	WAIT = 0,
 	
-	UPDATER_DW_INFO_REQUESTED,
-	
 	SW_INFO_REQUESTED,
 	SW_INFO_WAIT,
 	SW_DW_INFO_REQUESTED,
@@ -76,7 +74,11 @@ const CHUNKSIZE_MULTI = 1000
 var _status = STATUS_LOCAL.WAIT
 var _op_type:OP_TYPE_LOCAL = OP_TYPE_LOCAL.NONE
 
-# commons
+## local support
+var _mapod4d_debug_flag: bool = true
+var _mapod4d_debug_line: int = 0
+
+## commons
 var _current_brick = 0
 var _dw_name = null
 var _download_file = null
@@ -94,6 +96,9 @@ var _sysop = null
 var _tmp_dir = null
 var _destination = null
 var _which = null
+
+## _info data saved after info download
+var _info_saved = null
 
 ## sofware download vars
 var _ext = null
@@ -121,7 +126,7 @@ func _ready():
 # ----- remaining built-in virtual methods
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
-func _process(delta):
+func _process(_delta):
 	# status MACHINE
 	if _status != STATUS_LOCAL.WAIT:
 		match _status:
@@ -165,6 +170,24 @@ func _process(delta):
 
 # ----- private methods
 
+## console output iternal
+func _mapod4d_debug(data):
+	if _mapod4d_debug_flag:
+		var stack = get_stack()
+		if len(stack) > 1:
+			stack = str(stack[1])
+		else:
+			stack = ""
+		print("##_##{prog} {data} +++ {stack}".format({
+				"prog": _mapod4d_debug_line,
+				"stack": stack,
+				"data": str(data),
+		}))
+		_mapod4d_debug_line += 1
+		if _mapod4d_debug_line > 10000:
+			_mapod4d_debug_line = 0
+
+
 ## reset info status
 func _reset_info_and_wait():
 	# commons
@@ -196,7 +219,6 @@ func _reset_info_and_wait():
 
 	## metaverse download vars
 	_mapod4d_ver = null
-	print("WWWWWWWWWWWWWWWWAAAAAAAAAAAAAAAAAIIIIIIIIIITTTTTTTTTTTTT")
 	_set_status(STATUS_LOCAL.WAIT)
 
 
@@ -282,7 +304,7 @@ func sw_info_requested():
 func sw_dw_info_requested():
 	_url = MULTIVSVR + "/api/software/"
 	_url += _software_name + "/" + _sysop + "?format=json"
-	print(_url)
+	_mapod4d_debug(_url)
 	var headers = ["Content-Type: application/json"]
 	_download_file = _tmp_dir + "/" + BUF_NAME
 	http_sw_info_rq.request(_url, headers, HTTPClient.METHOD_GET)
@@ -294,13 +316,13 @@ func sw_dw_info_requested():
 
 
 ## info software download ended
-func _on_sw_dw_info_completed(result, response_code, headers, body):
-	print("progress")
+func _on_sw_dw_info_completed(result, _response_code, _headers, body):
+	_mapod4d_debug("progress")
 	if result == HTTPRequest.RESULT_SUCCESS:
 		var json = JSON.new()
 		json.parse(body.get_string_from_utf8())
-		print(body.get_string_from_utf8())
-		print(json.get_data())
+		_mapod4d_debug(body.get_string_from_utf8())
+		_mapod4d_debug(json.get_data())
 		_info = json.get_data()
 		if _info != null:
 			if 'detail' in _info:
@@ -308,7 +330,7 @@ func _on_sw_dw_info_completed(result, response_code, headers, body):
 				_reset_info_and_wait()
 			else:
 				if _get_status() == STATUS_LOCAL.SW_DW_INFO_WAIT:
-					print(_info.bricks)
+					_mapod4d_debug(_info.bricks)
 					_dw_name = _info.link + "_"
 					_current_brick = 0
 					# SOLO DEBUG
@@ -317,7 +339,8 @@ func _on_sw_dw_info_completed(result, response_code, headers, body):
 					# SOLO DEBUG FINE
 					_set_status(STATUS_LOCAL.SW_DW_BRICKS)
 				if _get_status() == STATUS_LOCAL.SW_INFO_WAIT:
-					print(_info)
+					_info_saved = _info
+					_mapod4d_debug("SAVED INFO" + str(_info))
 					_reset_info_and_wait()
 		else:
 			_child_update_msg("ERROR API NOT FOUND")
@@ -329,23 +352,23 @@ func _on_sw_dw_info_completed(result, response_code, headers, body):
 
 ## software download bricks X
 func _sw_dw_bricks():
-	print("brick " + str(_current_brick))
+	_mapod4d_debug("brick " + str(_current_brick))
 	if _current_brick >= _info.bricks:
 		_child_update_msg("END DOWNLOAD " + _dw_name)
 		_set_status(STATUS_LOCAL.MERGE_AND_MOVE)
 	else:
 		## download next brick
 		http_sw_dw_rq.download_file = _download_file + str(_current_brick)
-		print(http_sw_dw_rq.download_file)
+		_mapod4d_debug(http_sw_dw_rq.download_file)
 		var url = _dw_name + str(_current_brick)
-		print(url + " status:" + str(_status))
+		_mapod4d_debug(url + " status:" + str(_status))
 		http_sw_dw_rq.request(url)
 		_set_status(STATUS_LOCAL.SW_DW_BRICK_WAIT)
 
 
 ## software download single brick X
-func _on_sw_dw_brick_completed(result, response_code, headers, body):
-	print(response_code)
+func _on_sw_dw_brick_completed(result, response_code, _headers, _body):
+	_mapod4d_debug(response_code)
 	if result == HTTPRequest.RESULT_SUCCESS:
 		if response_code == 200:
 			_child_update_msg("BICK OK")
@@ -386,7 +409,7 @@ func _on_download_metaverse_requested(
 func mt_dw_info_requested():
 	_url = MULTIVSVR + "/api/multiverse/lastmetaverse/"
 	_url += _software_name + "/" + _mapod4d_ver + "?format=json"
-	print(_url)
+	_mapod4d_debug(_url)
 	var headers = ["Content-Type: application/json"]
 	_download_file = _tmp_dir + "/" + BUF_NAME
 	http_sw_info_rq.request(_url, headers, HTTPClient.METHOD_GET)
@@ -408,7 +431,7 @@ func _merge_and_move():
 
 
 func _merge_and_move_all_bricks():
-	print("_merge_and_move_all_blocks")
+	_mapod4d_debug("_merge_and_move_all_blocks")
 	_current_merging_brick += 1
 	if _current_merging_brick >= _info.bricks:
 		_dest_file.close()
@@ -419,7 +442,7 @@ func _merge_and_move_all_bricks():
 
 
 func _merge_and_move_single_brick():
-	print("_merge_and_move_single_block")
+	_mapod4d_debug("_merge_and_move_single_block")
 	_brick_name = _download_file + str(_current_merging_brick)
 	if FileAccess.file_exists(_brick_name) == false:
 		_dest_file.close()
@@ -431,7 +454,7 @@ func _merge_and_move_single_brick():
 
 
 func _read_and_save():
-	print("_read_and_save " + str(_current_merging_brick))
+	_mapod4d_debug("_read_and_save " + str(_current_merging_brick))
 	if _info.compressed == true:
 		_input_file_data = FileAccess.open_compressed(
 				_brick_name, 
@@ -440,7 +463,7 @@ func _read_and_save():
 		_input_file_data = FileAccess.open(
 				_brick_name,
 				FileAccess.READ)
-	print("_input_file_data code:" + str(FileAccess.get_open_error()))
+	_mapod4d_debug("_input_file_data code:" + str(FileAccess.get_open_error()))
 	_current_chunk = 0
 	_input_file_data_read = false
 	_set_status(STATUS_LOCAL.READ_AND_SAVE_ALL_CHUNKS)
@@ -499,7 +522,7 @@ func _read_and_save_execute(from_file, to_file, msg_info):
 			_child_update_merge_info(msg_info)
 			#await RenderingServer.frame_post_draw
 		data_read = from_file.get_buffer(CHUNKSIZE)
-		# print(str(count) + "-" + str(data_read.size()))
+		# _mapod4d_debug(str(count) + "-" + str(data_read.size()))
 		to_file.store_buffer(data_read)
 		count -= 1
 
@@ -525,7 +548,7 @@ func _read_and_save_execute(from_file, to_file, msg_info):
 #			"blocks" = 0,
 #			"block" = 0,
 #		}
-#		print(msg_info)
+#		_mapod4d_debug(msg_info)
 #		if FileAccess.file_exists(file_name) == false:
 #			dest.close()
 #			if count < _info.bricks:
@@ -541,9 +564,9 @@ func _read_and_save_execute(from_file, to_file, msg_info):
 #					FileAccess.READ, FileAccess.COMPRESSION_DEFLATE)
 #		else:
 #			file_data = FileAccess.open(file_name, FileAccess.READ)
-#		print(FileAccess.get_open_error())
+#		_mapod4d_debug(FileAccess.get_open_error())
 #		## read and write buffer
-#		print(file_data.get_error())
+#		_mapod4d_debug(file_data.get_error())
 #		_read_and_save_start(file_data, dest, msg_info)
 #		file_data.close()
 #		## remove buffer
@@ -564,11 +587,11 @@ func _merge_and_move_start():
 #			_child_update_merge_info(msg_info)
 #			#await RenderingServer.frame_post_draw
 #		data_read = from_file.get_buffer(CHUNKSIZE)
-#		# print(str(count) + "-" + str(data_read.size()))
+#		# _mapod4d_debug(str(count) + "-" + str(data_read.size()))
 #		to_file.store_buffer(data_read)
 #		count -= 1
 
-func _read_and_save_start(from_file, to_file, msg_info):
+func _read_and_save_start(_from_file, _to_file, _msg_info):
 	pass
 
 

@@ -14,3 +14,7 @@ config/name="MAPOD4D Launcer M"
 run/main_scene="res://laucherm.tscn"
 config/features=PackedStringArray("4.1", "Forward Plus")
 config/icon="res://icon.svg"
+
+[internationalization]
+
+locale/translations=PackedStringArray("res://localization/localization.en.translation", "res://localization/localization.it.translation")

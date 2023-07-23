@@ -1,9 +1,10 @@
-[gd_scene load_steps=11 format=3 uid="uid://bj2y0bm2xe0hy"]
+[gd_scene load_steps=12 format=3 uid="uid://bj2y0bm2xe0hy"]
 
 [ext_resource type="Script" path="res://launcherm.gd" id="1_ppn4d"]
 [ext_resource type="Script" path="res://software.gd" id="2_uibrg"]
 [ext_resource type="Script" path="res://metaverse.gd" id="3_cnmp7"]
 [ext_resource type="StyleBox" uid="uid://dgxx5r46100nm" path="res://styles/button_normal.tres" id="3_ruhbg"]
+[ext_resource type="StyleBox" uid="uid://rg75dwd6lygw" path="res://styles/button_disabled.tres" id="4_y3vte"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_83g86"]
 bg_color = Color(0, 0, 0, 1)
@@ -92,9 +93,17 @@ theme_override_constants/margin_right = 140
 [node name="VBoxContainer" type="VBoxContainer" parent="TabContainer/Software/MarginContainer/VBoxContainer/MarginContainer"]
 layout_mode = 2
 
+[node name="UpdareSoftware" type="Button" parent="TabContainer/Software/MarginContainer/VBoxContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_styles/normal = ExtResource("3_ruhbg")
+theme_override_styles/disabled = ExtResource("4_y3vte")
+text = "UPDATE_SW"
+
 [node name="CheckInfo" type="Button" parent="TabContainer/Software/MarginContainer/VBoxContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
 theme_override_styles/normal = ExtResource("3_ruhbg")
+theme_override_styles/disabled = ExtResource("4_y3vte")
+disabled = true
 text = "Check Info"
 
 [node name="Download" type="Button" parent="TabContainer/Software/MarginContainer/VBoxContainer/MarginContainer/VBoxContainer"]
