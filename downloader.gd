@@ -16,8 +16,13 @@ extends Control
 # ----- signals
 
 # ----- enums
+
+
 enum STATUS_LOCAL {
 	WAIT = 0,
+	
+	UPDATER_DW_INFO_REQUESTED,
+	
 	SW_DW_INFO_REQUESTED,
 	SW_DW_INFO_WAIT,
 	SW_DW_BRICKS,
