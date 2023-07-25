@@ -1,0 +1,39 @@
+## status fluxes
+
+
+## ------------ request info about software
+00 WAIT
+_on_info_software_requested - event generator
+01 SW_INFO_REQUESTED
+			
+			_sw_dw_info_requested - request info
+02 SW_INFO_WAIT 
+			_child_update_download_info- wait and update info
+			_on_sw_dw_info_completed - end wait
+03 WAIT
+
+## ------------ request info about updater, laucher and core software
+00 WAIT
+_on_check_info_software_updates_requested - event generator
+01 SW_UPDATER_REQUEST_LOAD
+			_sw_info_request_load - init informations
+02 SW_INFO_UPDATER_REQUESTED
+			_sw_dw_info_requested - request info
+03 SW_INFO_UPDATER_WAIT
+			_child_update_download_info- wait and update info
+			_on_sw_dw_info_completed - end wait
+04 SW_LAUNCHER_REQUEST_LOAD
+			_sw_info_request_load - init informations
+05 SW_INFO_LAUNCHER_REQUESTED
+			_sw_dw_info_requested - request info
+06 SW_INFO_LAUNCHER_WAIT
+			_child_update_download_info- wait and update info
+			_on_sw_dw_info_completed - end wait
+07 SW_CORE_REQUEST_LOAD
+			_sw_info_request_load - init informations
+08 SW_INFO_CORE_REQUESTED
+			_sw_dw_info_requested - request info
+09 SW_INFO_CORE_WAIT
+			_child_update_download_info- wait and update info
+			_on_sw_dw_info_completed - end wait
+10 WAIT
