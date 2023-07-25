@@ -18,6 +18,8 @@ signal download_software_requested(
 		software_name, ext, sysop, tmp_dir, destination, which)
 signal info_software_requested(
 		software_name, ext, sysop, tmp_dir, destination, which)
+## base check for sotware updates
+signal check_info_software_updates_requested(which)
 
 # ----- enums
 
@@ -71,24 +73,27 @@ func update_msg(msg_data):
 
 # ----- private methods
 
+func _on_update_software_pressed():
+	info.text = ""
+	emit_signal(
+			"check_info_software_updates_requested",
+			self
+	)
+#	emit_signal(
+#			"check_info_software_updates_requested",
+#			"softwaretest",
+#			".exe",
+#			"L00",
+#			"files/tmp",
+#			"files/test_merged",
+#			self
+#	)
+
 
 func _on_download_pressed():
 	info.text = ""
 	emit_signal(
 			"download_software_requested",
-			"softwaretest",
-			".exe",
-			"L00",
-			"files/tmp",
-			"files/test_merged",
-			self
-	)
-
-
-func _on_check_info_pressed():
-	info.text = ""
-	emit_signal(
-			"info_software_requested",
 			"softwaretest",
 			".exe",
 			"L00",

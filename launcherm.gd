@@ -17,12 +17,25 @@ extends Control
 
 # ----- enums
 
-
 enum STATUS_LOCAL {
 	WAIT = 0,
 	
+	CHECK_INFO_SOFTWARE_UPDATES_REQUESTED,
+
+	SW_UPDATER_REQUEST_LOAD,
+	SW_LAUNCHER_REQUEST_LOAD,
+	SW_CORE_REQUEST_LOAD,
+
 	SW_INFO_REQUESTED,
+	SW_INFO_UPDATER_REQUESTED,
+	SW_INFO_LAUNCHER_REQUESTED,
+	SW_INFO_CORE_REQUESTED,
+
 	SW_INFO_WAIT,
+	SW_INFO_UPDATER_WAIT,
+	SW_INFO_LAUNCHER_WAIT,
+	SW_INFO_CORE_WAIT,
+
 	SW_DW_INFO_REQUESTED,
 	SW_DW_INFO_WAIT,
 	SW_DW_BRICKS,
@@ -77,6 +90,7 @@ var _op_type:OP_TYPE_LOCAL = OP_TYPE_LOCAL.NONE
 ## local support
 var _mapod4d_debug_flag: bool = true
 var _mapod4d_debug_line: int = 0
+var _is_ready = false
 
 ## commons
 var _current_brick = 0
@@ -98,7 +112,7 @@ var _destination = null
 var _which = null
 
 ## _info data saved after info download
-var _info_saved = null
+var _info_saved = {}
 
 ## sofware download vars
 var _ext = null
@@ -114,6 +128,8 @@ func _ready():
 	http_sw_dw_rq.request_completed.connect(
 			_on_sw_dw_brick_completed)
 
+	software.check_info_software_updates_requested.connect(
+			_on_check_info_software_updates_requested)
 	software.download_software_requested.connect(
 			_on_download_software_requested)
 	software.info_software_requested.connect(
@@ -122,49 +138,75 @@ func _ready():
 	metaverse.download_metaverse_requested.connect(
 			_on_download_metaverse_requested)
 	
+	#_set_status(STATUS_LOCAL.CHECK_INFO_SOFTWARE_UPDATES_REQUESTED)
+	_set_status(STATUS_LOCAL.WAIT)
+	_is_ready = true
+	
 
 # ----- remaining built-in virtual methods
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(_delta):
 	# status MACHINE
-	if _status != STATUS_LOCAL.WAIT:
-		match _status:
-			## simple file info request
-			STATUS_LOCAL.SW_INFO_REQUESTED:
-				sw_info_requested()
-			## simple file info request wait
-			STATUS_LOCAL.SW_INFO_WAIT:
-				_child_update_download_info()
-			## file info request to download
-			STATUS_LOCAL.SW_DW_INFO_REQUESTED:
-				sw_dw_info_requested()
-			STATUS_LOCAL.SW_DW_INFO_WAIT:
-				_child_update_download_info()
-			STATUS_LOCAL.SW_DW_BRICKS:
-				_sw_dw_bricks()
-			STATUS_LOCAL.SW_DW_BRICK_WAIT:
-				_child_update_download_info()
-			STATUS_LOCAL.SW_DW_COMPLETED:
-				_sw_dw_completed()
+	if _is_ready:
+		if _status != STATUS_LOCAL.WAIT:
+			match _status:
+				STATUS_LOCAL.CHECK_INFO_SOFTWARE_UPDATES_REQUESTED:
+					_on_check_info_software_updates_requested(software)
+				
+				STATUS_LOCAL.SW_UPDATER_REQUEST_LOAD, \
+				STATUS_LOCAL.SW_LAUNCHER_REQUEST_LOAD, \
+				STATUS_LOCAL.SW_CORE_REQUEST_LOAD:
+					_sw_info_request_load()
+				
+				## simple file updater info request
+				STATUS_LOCAL.SW_INFO_REQUESTED, \
+				## updater file info request
+				STATUS_LOCAL.SW_INFO_UPDATER_REQUESTED, \
+				## launcher file info request
+				STATUS_LOCAL.SW_INFO_LAUNCHER_REQUESTED, \
+				## core file info request
+				STATUS_LOCAL.SW_INFO_CORE_REQUESTED, \
+				## file info request to download
+				STATUS_LOCAL.SW_DW_INFO_REQUESTED:
+					_sw_dw_info_requested()
 
-			STATUS_LOCAL.MT_DW_INFO_REQUESTED:
-				mt_dw_info_requested()
-			STATUS_LOCAL.MT_DW_COMPLETED:
-				_mt_dw_completed()
+				## file info request wait
+				STATUS_LOCAL.SW_INFO_WAIT, \
+				## updater file info request wait
+				STATUS_LOCAL.SW_INFO_UPDATER_WAIT, \
+				## launcher file info request wait
+				STATUS_LOCAL.SW_INFO_LAUNCHER_WAIT, \
+				## core file info request wait
+				STATUS_LOCAL.SW_INFO_CORE_WAIT, \
+				## file info request to download wait
+				STATUS_LOCAL.SW_DW_INFO_WAIT:
+					_child_update_download_info()
 
-			STATUS_LOCAL.MERGE_AND_MOVE:
-				_merge_and_move()
-			STATUS_LOCAL.MERGE_AND_MOVE_ALL_BRICKS:
-				_merge_and_move_all_bricks()
-			STATUS_LOCAL.MERGE_AND_MOVE_SINGLE_BRICK:
-				_merge_and_move_single_brick()
-			STATUS_LOCAL.READ_AND_SAVE:
-				_read_and_save()
-			STATUS_LOCAL.READ_AND_SAVE_ALL_CHUNKS:
-				_read_and_save_all_chunks()
-			STATUS_LOCAL.READ_AND_SAVE_GROUP_OF_CHUNKS:
-				_read_and_save_group_of_chunks()
+				STATUS_LOCAL.SW_DW_BRICKS:
+					_sw_dw_bricks()
+				STATUS_LOCAL.SW_DW_BRICK_WAIT:
+					_child_update_download_info()
+				STATUS_LOCAL.SW_DW_COMPLETED:
+					_sw_dw_completed()
+
+				STATUS_LOCAL.MT_DW_INFO_REQUESTED:
+					mt_dw_info_requested()
+				STATUS_LOCAL.MT_DW_COMPLETED:
+					_mt_dw_completed()
+
+				STATUS_LOCAL.MERGE_AND_MOVE:
+					_merge_and_move()
+				STATUS_LOCAL.MERGE_AND_MOVE_ALL_BRICKS:
+					_merge_and_move_all_bricks()
+				STATUS_LOCAL.MERGE_AND_MOVE_SINGLE_BRICK:
+					_merge_and_move_single_brick()
+				STATUS_LOCAL.READ_AND_SAVE:
+					_read_and_save()
+				STATUS_LOCAL.READ_AND_SAVE_ALL_CHUNKS:
+					_read_and_save_all_chunks()
+				STATUS_LOCAL.READ_AND_SAVE_GROUP_OF_CHUNKS:
+					_read_and_save_group_of_chunks()
 
 # ----- public methods
 
@@ -295,24 +337,64 @@ func _on_download_software_requested(
 	_set_status(STATUS_LOCAL.SW_DW_INFO_REQUESTED)
 
 
-## simple download software requested
-func sw_info_requested():
-	sw_dw_info_requested()
+## ENTRY 0 start software check updates download
+func _on_check_info_software_updates_requested(which):
+	_which = which
+	## updater
+	_op_type = OP_TYPE_LOCAL.SW_DW
+	_software_name = "softwaretest"
+	_ext = ".exe"
+	_sysop = "L00"
+	_tmp_dir = "files/tmp"
+	_destination = "files/test_merged"
+	_set_status(STATUS_LOCAL.SW_INFO_UPDATER_REQUESTED)
+
+## download software requested
+func _sw_info_request_load():
+	_which = software
+	_op_type = OP_TYPE_LOCAL.SW_DW
+	_tmp_dir = "files/tmp"
+	var status = _get_status()
+	match status:
+		STATUS_LOCAL.SW_UPDATER_REQUEST_LOAD:
+			_software_name = "softwaretest"
+			_ext = ".exe"
+			_sysop = "L00"
+			_destination = "files/updater"
+			_set_status(STATUS_LOCAL.SW_INFO_UPDATER_REQUESTED)
+		STATUS_LOCAL.SW_LAUNCHER_REQUEST_LOAD:
+			_software_name = "softwaretest"
+			_ext = ".exe"
+			_sysop = "L00"
+			_destination = "files/launcher"
+			_set_status(STATUS_LOCAL.SW_INFO_UPDATER_REQUESTED)
+		STATUS_LOCAL.SW_CORE_REQUEST_LOAD:
+			_software_name = "softwaretest"
+			_ext = ".exe"
+			_sysop = "L00"
+			_destination = "files/core"
+			_set_status(STATUS_LOCAL.SW_INFO_CORE_REQUESTED)
 
 
 ## download software requested
-func sw_dw_info_requested():
+func _sw_dw_info_requested():
 	_url = MULTIVSVR + "/api/software/"
 	_url += _software_name + "/" + _sysop + "?format=json"
 	_mapod4d_debug(_url)
 	var headers = ["Content-Type: application/json"]
 	_download_file = _tmp_dir + "/" + BUF_NAME
 	http_sw_info_rq.request(_url, headers, HTTPClient.METHOD_GET)
-	if _get_status() == STATUS_LOCAL.SW_DW_INFO_REQUESTED:
-		_set_status(STATUS_LOCAL.SW_DW_INFO_WAIT)
-	else:
-		## _get_status() == STATUS_LOCAL.SW_INFO_REQUESTED:
+	var status = _get_status()
+	if status == STATUS_LOCAL.SW_INFO_REQUESTED:
 		_set_status(STATUS_LOCAL.SW_INFO_WAIT)
+	elif status == STATUS_LOCAL.SW_INFO_UPDATER_REQUESTED:
+		_set_status(STATUS_LOCAL.SW_INFO_UPDATER_WAIT)
+	elif status == STATUS_LOCAL.SW_INFO_LAUNCHER_REQUESTED:
+		_set_status(STATUS_LOCAL.SW_INFO_LAUNCHER_WAIT)
+	elif status == STATUS_LOCAL.SW_INFO_CORE_REQUESTED:
+		_set_status(STATUS_LOCAL.SW_INFO_CORE_WAIT)
+	else:
+		_set_status(STATUS_LOCAL.SW_DW_INFO_WAIT)
 
 
 ## info software download ended
@@ -321,15 +403,16 @@ func _on_sw_dw_info_completed(result, _response_code, _headers, body):
 	if result == HTTPRequest.RESULT_SUCCESS:
 		var json = JSON.new()
 		json.parse(body.get_string_from_utf8())
-		_mapod4d_debug(body.get_string_from_utf8())
-		_mapod4d_debug(json.get_data())
+		_mapod4d_debug("BODY" + str(body.get_string_from_utf8()))
+		_mapod4d_debug("JSON" + str(json.get_data()))
 		_info = json.get_data()
 		if _info != null:
 			if 'detail' in _info:
 				_child_update_msg("ERROR " + _info.detail)
 				_reset_info_and_wait()
 			else:
-				if _get_status() == STATUS_LOCAL.SW_DW_INFO_WAIT:
+				var status = _get_status()
+				if status == STATUS_LOCAL.SW_DW_INFO_WAIT:
 					_mapod4d_debug(_info.bricks)
 					_dw_name = _info.link + "_"
 					_current_brick = 0
@@ -338,9 +421,19 @@ func _on_sw_dw_info_completed(result, _response_code, _headers, body):
 					#_info.compressed = false
 					# SOLO DEBUG FINE
 					_set_status(STATUS_LOCAL.SW_DW_BRICKS)
-				if _get_status() == STATUS_LOCAL.SW_INFO_WAIT:
-					_info_saved = _info
-					_mapod4d_debug("SAVED INFO" + str(_info))
+				elif status == STATUS_LOCAL.SW_INFO_WAIT:
+					_info_saved['none'] = _info
+					_mapod4d_debug("SAVED INFO" + str(_info_saved))
+					_reset_info_and_wait()
+				elif status == STATUS_LOCAL.SW_INFO_UPDATER_WAIT:
+					_info_saved['updater'] = _info
+					_set_status(STATUS_LOCAL.SW_INFO_LAUNCHER_REQUESTED)
+				elif status == STATUS_LOCAL.SW_INFO_LAUNCHER_WAIT:
+					_info_saved['launcher'] = _info
+					_set_status(STATUS_LOCAL.SW_INFO_CORE_REQUESTED)
+				elif status == STATUS_LOCAL.SW_INFO_CORE_WAIT:
+					_info_saved['core'] = _info
+					_mapod4d_debug("SAVED INFO" + str(_info_saved))
 					_reset_info_and_wait()
 		else:
 			_child_update_msg("ERROR API NOT FOUND")

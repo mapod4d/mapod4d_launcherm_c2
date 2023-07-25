@@ -1,10 +1,10 @@
-[gd_scene load_steps=12 format=3 uid="uid://bj2y0bm2xe0hy"]
+[gd_scene load_steps=12 format=3 uid="uid://cqj5peget8xrm"]
 
-[ext_resource type="Script" path="res://launcherm.gd" id="1_ppn4d"]
-[ext_resource type="Script" path="res://software.gd" id="2_uibrg"]
-[ext_resource type="Script" path="res://metaverse.gd" id="3_cnmp7"]
-[ext_resource type="StyleBox" uid="uid://dgxx5r46100nm" path="res://styles/button_normal.tres" id="3_ruhbg"]
-[ext_resource type="StyleBox" uid="uid://rg75dwd6lygw" path="res://styles/button_disabled.tres" id="4_y3vte"]
+[ext_resource type="Script" path="res://launcherm.gd" id="1_h8705"]
+[ext_resource type="Script" path="res://software.gd" id="2_820pk"]
+[ext_resource type="StyleBox" uid="uid://dgxx5r46100nm" path="res://styles/button_normal.tres" id="3_8airf"]
+[ext_resource type="StyleBox" uid="uid://rg75dwd6lygw" path="res://styles/button_disabled.tres" id="4_klrmy"]
+[ext_resource type="Script" path="res://metaverse.gd" id="5_p7o53"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_83g86"]
 bg_color = Color(0, 0, 0, 1)
@@ -41,7 +41,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_ppn4d")
+script = ExtResource("1_h8705")
 
 [node name="TabContainer" type="TabContainer" parent="."]
 layout_mode = 1
@@ -56,7 +56,7 @@ theme_override_styles/tab_unselected = SubResource("StyleBoxFlat_xavjq")
 [node name="Software" type="Panel" parent="TabContainer"]
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_24f7s")
-script = ExtResource("2_uibrg")
+script = ExtResource("2_820pk")
 
 [node name="MarginContainer" type="MarginContainer" parent="TabContainer/Software"]
 layout_mode = 1
@@ -93,29 +93,22 @@ theme_override_constants/margin_right = 140
 [node name="VBoxContainer" type="VBoxContainer" parent="TabContainer/Software/MarginContainer/VBoxContainer/MarginContainer"]
 layout_mode = 2
 
-[node name="UpdareSoftware" type="Button" parent="TabContainer/Software/MarginContainer/VBoxContainer/MarginContainer/VBoxContainer"]
+[node name="UpdateSoftware" type="Button" parent="TabContainer/Software/MarginContainer/VBoxContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
-theme_override_styles/normal = ExtResource("3_ruhbg")
-theme_override_styles/disabled = ExtResource("4_y3vte")
+theme_override_styles/normal = ExtResource("3_8airf")
+theme_override_styles/disabled = ExtResource("4_klrmy")
 text = "UPDATE_SW"
-
-[node name="CheckInfo" type="Button" parent="TabContainer/Software/MarginContainer/VBoxContainer/MarginContainer/VBoxContainer"]
-layout_mode = 2
-theme_override_styles/normal = ExtResource("3_ruhbg")
-theme_override_styles/disabled = ExtResource("4_y3vte")
-disabled = true
-text = "Check Info"
 
 [node name="Download" type="Button" parent="TabContainer/Software/MarginContainer/VBoxContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
-theme_override_styles/normal = ExtResource("3_ruhbg")
+theme_override_styles/normal = ExtResource("3_8airf")
 text = "Download"
 
 [node name="Metaverse" type="Panel" parent="TabContainer"]
 visible = false
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_spad7")
-script = ExtResource("3_cnmp7")
+script = ExtResource("5_p7o53")
 
 [node name="Download" type="Button" parent="TabContainer/Metaverse"]
 layout_mode = 0
@@ -159,6 +152,6 @@ accept_gzip = false
 
 [node name="HTTPMTRequestDownload" type="HTTPRequest" parent="."]
 
-[connection signal="pressed" from="TabContainer/Software/MarginContainer/VBoxContainer/MarginContainer/VBoxContainer/CheckInfo" to="TabContainer/Software" method="_on_check_info_pressed"]
+[connection signal="pressed" from="TabContainer/Software/MarginContainer/VBoxContainer/MarginContainer/VBoxContainer/UpdateSoftware" to="TabContainer/Software" method="_on_update_software_pressed"]
 [connection signal="pressed" from="TabContainer/Software/MarginContainer/VBoxContainer/MarginContainer/VBoxContainer/Download" to="TabContainer/Software" method="_on_download_pressed"]
 [connection signal="pressed" from="TabContainer/Metaverse/Download" to="TabContainer/Metaverse" method="_on_download_pressed"]
