@@ -114,7 +114,7 @@ const EDITOR_DBG_BASE_PATH = "test"
 
 # ----- private variables
 ## this application codified version
-var _m4dversion = null
+var _m4dsversion = null
 
 # status machine
 # current status
@@ -146,11 +146,14 @@ var _mapod4d_debug_flag: bool = true
 ## enable debug status flux messages
 var _mapod4d_debug_status_flag: bool = true
 
-
 var _mapod4d_debug_line: int = 0
 var _is_ready = false
 
-## commons
+## if true the module needs to be updated
+var _update_updater = false
+var _update_core = false
+var _update_launcher = false
+
 var _current_brick = 0
 var _dw_name = null
 var _download_file = null
@@ -196,31 +199,27 @@ var _mapod4d_ver = null
 func _ready():
 	_block_istance()
 	## encode application version
-	_m4dversion = "{v1}{v2}{v3}{v4}".format({
-		"v1": "%03d" % M4DVERSION.v1,
-		"v2": "%03d" % M4DVERSION.v2,
-		"v3": "%03d" % M4DVERSION.v3,
-		"v4": "%03d" % M4DVERSION.v4,
-	})
+	_m4dsversion = _sversion(
+		M4DVERSION.v1, M4DVERSION.v2, M4DVERSION.v3, M4DVERSION.v4)
 	## check OS
 	match OS.get_name():
 		"Windows", "UWP":
-			_os_info.os = "MSWIN"
+			_os_info.os = "W00"
 			_os_info.exe_ext = ".exe"
 		"macOS":
-			_os_info.os = "MAC"
+			_os_info.os = "M00"
 			_os_info.exe_ext = ""
 		"Linux", "FreeBSD", "NetBSD", "OpenBSD", "BSD":
-			_os_info.os = "LIN"
+			_os_info.os = "L00"
 			_os_info.exe_ext = ""
 		"Android":
-			_os_info.os = "AND"
+			_os_info.os = "A00"
 			_os_info.exe_ext = ""
 		"iOS":
-			_os_info.os = "IOS"
+			_os_info.os = "I00"
 			_os_info.exe_ext = ""
 		"Web":
-			_os_info.os = "WWW"
+			_os_info.os = "H00"
 			_os_info.exe_ext = ""
 
 	## get base path
@@ -370,8 +369,40 @@ func _build_dirs():
 		_make_dir(_updates_path)
 
 
+func _sversion(v1, v2, v3, v4):
+	return "{v1}{v2}{v3}{v4}".format({
+		"v1": "%03d" % v1,
+		"v2": "%03d" % v2,
+		"v3": "%03d" % v3,
+		"v4": "%03d" % v4,
+	})
+
+
 func _read_version(file_name):
-	pass
+	var ret_val = {
+		"result": false,
+		"version" : {},
+		"sversion": "",
+	}
+	var file = FileAccess.open(file_name, FileAccess.READ)
+	if file != null:
+		var data = file.get_as_text()
+		var data_json = JSON.parse_string(data)
+		if data_json != null:
+			if "v1" in data_json and \
+					"v2" in data_json and \
+					"v3" in data_json and \
+					"v4" in data_json:
+				ret_val.result = true
+				ret_val.version = {
+					"v1": data_json.v1,
+					"v2": data_json.v2,
+					"v3": data_json.v3,
+					"v4": data_json.v4,
+				}
+				ret_val.encoded_version = _sversion(
+					data_json.v1, data_json.v2, data_json.v3, data_json.v4)
+	return ret_val
 
 
 ## write updater version json
@@ -379,7 +410,7 @@ func _write_updater_version():
 	if _base_dir != null:
 		if _base_dir.file_exists(_updater_path):
 			var updater_exe = "%s%s" % [_updater_path, _os_info.exe_ext]
-			var exit_code = OS.execute(updater_exe, ["++", "-m4dver"])
+			var _exit_code = OS.execute(updater_exe, ["++", "-m4dver"])
 		else:
 			var version_file = "%s%s" % [_updater_path, ".json"]
 			var json_data = JSON.stringify(M4D0VERSION)
@@ -394,7 +425,7 @@ func _write_core_version():
 	if _base_dir != null:
 		if _base_dir.file_exists(_core_path):
 			var core_exe = "%s%s" % [_core_path, _os_info.exe_ext]
-			var exit_code = OS.execute(core_exe, ["++", "-m4dver"])
+			var _exit_code = OS.execute(core_exe, ["++", "-m4dver"])
 		else:
 			var version_file = "%s%s" % [_core_path, ".json"]
 			var json_data = JSON.stringify(M4D0VERSION)
@@ -682,15 +713,15 @@ func _sw_info_request_load():
 	var status = _get_status()
 	match status:
 		STATUS_LOCAL.SW_UPDATER_REQUEST_LOAD:
-			_software_name = "softwaretest"
-			_ext = ".exe"
-			_sysop = "L00"
+			_software_name = "updater"
+			_ext = _os_info.exe_ext
+			_sysop = _os_info.os
 			_destination = "files/updater"
 			_set_status(STATUS_LOCAL.SW_INFO_UPDATER_REQUESTED)
 		STATUS_LOCAL.SW_LAUNCHER_REQUEST_LOAD:
-			_software_name = "softwaretest"
-			_ext = ".exe"
-			_sysop = "L00"
+			_software_name = "launcher"
+			_ext = _os_info.exe_ext
+			_sysop = _os_info.os
 			_destination = "files/launcher"
 			_set_status(STATUS_LOCAL.SW_INFO_LAUNCHER_REQUESTED)
 		STATUS_LOCAL.SW_CORE_REQUEST_LOAD:
@@ -808,8 +839,33 @@ func _on_sw_dw_brick_completed(result, response_code, _headers, _body):
 
 ## write updater software version and core software version
 func _sw_check_ulc():
+	var version = {}
+	_update_updater = false
+	_update_launcher = false
+	_update_core = false
+	
 	_write_updater_version()
+	version = _read_version(_updater_path + ".json")
+	if version.result == true:
+		if version.sversion < _info_saved["updater"].sversion:
+			_update_updater = true
+
+	if _m4dsversion < _info_saved["launcher"].sversion:
+		_update_launcher = true
+
 	_write_core_version()
+	version = _read_version(_core_path + ".json")
+	if version.result == true:
+		if version.sversion <  _info_saved["core"].sversion:
+			_update_core = true
+
+	_mapod4d_debug(
+		"updater:{uv} launcher:{lv} core:{cv}".format({
+			"uv": _update_updater,
+			"lv": _update_launcher,
+			"cv": _update_core,
+		}))
+
 	_reset_info_and_wait()
 
 
