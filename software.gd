@@ -33,8 +33,7 @@ var c = 0
 # ----- private variables
 
 # ----- onready variables
-@onready var info = $MarginContainer/VBoxContainer/Info
-@onready var info1 = $MarginContainer/VBoxContainer/Info1
+@onready var info = %SoftwareInfo
 
 # ----- optional built-in virtual _init method
 
@@ -56,20 +55,16 @@ func update_download_info(data):
 	#		data))
 	info.set_text(
 			"BS {bs} DB {db} P {perc} BRS {bricks} BR {brick}".format(data))
-	info1.set_text(
-			"BS {bs} DB {db} P {perc} BRS {bricks} BR {brick}".format(data))
 
 
 func update_merge_info(data):
 	# "file_name" "brick" "bricks" "chunk" "chunks"
 	info.set_text("{file_name} {brick} {bricks} {chunk} {chunks}".format(data))
-	info1.set_text("{file_name} {brick} {bricks} {chunk} {chunks}".format(data))
 
 
 func update_msg(msg_data):
 	#print(str(msg_data))
 	info.set_text(str(msg_data))
-	info1.set_text(str(msg_data))
 
 # ----- private methods
 

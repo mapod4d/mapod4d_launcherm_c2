@@ -36,4 +36,6 @@ _on_check_info_software_updates_requested - event generator
 09 SW_INFO_CORE_WAIT
 			_child_update_download_info- wait and update info
 			_on_sw_dw_info_completed - end wait
-10 WAIT
+10 SW_INFO_CORE_WAIT
+			
+11 WAIT

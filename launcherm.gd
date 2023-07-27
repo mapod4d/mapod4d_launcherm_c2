@@ -39,7 +39,7 @@ enum STATUS_LOCAL {
 	SW_DW_INFO_REQUESTED,
 	SW_DW_INFO_WAIT,
 	
-	SW_DOWNLOAD_ULC,
+	SW_CHECK_ULC,
 	
 	SW_DW_BRICKS,
 	SW_DW_BRICK_WAIT,
@@ -63,37 +63,90 @@ enum OP_TYPE_LOCAL {
 }
 
 # ----- constants
+const M4DVERSION = {
+	'v1': 0, 
+	'v2': 0,
+	'v3': 0,
+	'v4': 1,
+	'p': "a",
+	'godot': {
+		'v1': 4,
+		'v2': 1,
+		'v3': 1,
+		'v4': 2, # dev = 0, rc = 1, stable = 2
+		'p': "stable"
+	}
+}
+const M4DNAME = "mapod4d_launcherm"
+
+const M4D0VERSION = {
+	'v1': 0, 
+	'v2': 0,
+	'v3': 0,
+	'v4': 0,
+	'p': "a",
+	'godot': {
+		'v1': 4,
+		'v2': 1,
+		'v3': 1,
+		'v4': 2, # dev = 0, rc = 1, stable = 2
+		'p': "stable"
+	}
+}
+
+const WK_PATH = 'wk'
+const UPDATER_NAME = "updater"
+const CORE_NAME = "mapo4d"
+const UPDATES_DIR = "updates"
 const MULTIVSVR = "https://sv001.mapod4d.it"
 const MULTIVSVR_PORT = 80
 const BUF_NAME = "buf_"
 const CHUNKSIZE = 550000
 const CHUNKSIZE_MULTI = 1000
+const BLOCK_ISTANCE_PORT = 2000
+const EDITOR_DBG_BASE_PATH = "test"
+
+
 
 # ----- exported variables
 
 # ----- public variables
 
 # ----- private variables
+## this application codified version
+var _m4dversion = null
 
-# ----- onready variables
-@onready var http_sw_info_rq = $HTTPSWRequestInfo
-@onready var http_sw_dw_rq = $HTTPSWRequestDownload
-@onready var http_mt_info_rq = $HTTPSWRequestInfo
-@onready var http_mt_dw_rq = $HTTPSWRequestDownload
-@onready var software = $TabContainer/Software
-@onready var metaverse = $TabContainer/Metaverse
-
-
-# ----- optional built-in virtual _init method
-
-# ----- built-in virtual _ready method
+# status machine
+# current status
 var _status = STATUS_LOCAL.WAIT
+# status of request
+var _entry_0_status = STATUS_LOCAL.WAIT
+
+## dinamic paths 
+var _base_dir = null
+var _updater_path = null
+var _core_path = null
+var _wk_path = null
+var _updates_path = null
+
+
+## general
+var _server = null
+var _base_path = null
 var _local_lock = false # future mutitread
 var _op_type:OP_TYPE_LOCAL = OP_TYPE_LOCAL.NONE
+var _os_info = {
+	"os": null,
+	"exe_ext": ""
+}
 
 ## local support
-var _mapod4d_debug_flag: bool = false
+## enable debug messages
+var _mapod4d_debug_flag: bool = true
+## enable debug status flux messages
 var _mapod4d_debug_status_flag: bool = true
+
+
 var _mapod4d_debug_line: int = 0
 var _is_ready = false
 
@@ -125,9 +178,59 @@ var _ext = null
 ## metaverse download vars
 var _mapod4d_ver = null
 
+# ----- onready variables
+@onready var http_sw_info_rq = $HTTPSWRequestInfo
+@onready var http_sw_dw_rq = $HTTPSWRequestDownload
+@onready var http_mt_info_rq = $HTTPSWRequestInfo
+@onready var http_mt_dw_rq = $HTTPSWRequestDownload
+@onready var software = $TabContainer/Software
+@onready var metaverse = $TabContainer/Metaverse
+
+
+# ----- optional built-in virtual _init method
+
+# ----- built-in virtual _ready method
+
 
 # Called when the node enters the scene tree for the first time.
 func _ready():
+	_block_istance()
+	## encode application version
+	_m4dversion = "{v1}{v2}{v3}{v4}".format({
+		"v1": "%03d" % M4DVERSION.v1,
+		"v2": "%03d" % M4DVERSION.v2,
+		"v3": "%03d" % M4DVERSION.v3,
+		"v4": "%03d" % M4DVERSION.v4,
+	})
+	## check OS
+	match OS.get_name():
+		"Windows", "UWP":
+			_os_info.os = "MSWIN"
+			_os_info.exe_ext = ".exe"
+		"macOS":
+			_os_info.os = "MAC"
+			_os_info.exe_ext = ""
+		"Linux", "FreeBSD", "NetBSD", "OpenBSD", "BSD":
+			_os_info.os = "LIN"
+			_os_info.exe_ext = ""
+		"Android":
+			_os_info.os = "AND"
+			_os_info.exe_ext = ""
+		"iOS":
+			_os_info.os = "IOS"
+			_os_info.exe_ext = ""
+		"Web":
+			_os_info.os = "WWW"
+			_os_info.exe_ext = ""
+
+	## get base path
+	_base_path = OS.get_executable_path().get_base_dir()
+	if OS.has_feature('editor'):
+		_base_path = EDITOR_DBG_BASE_PATH
+	_build_paths()
+	_build_dirs()
+	_write_version()
+
 	http_sw_info_rq.request_completed.connect(
 			_on_sw_dw_info_completed)
 	http_sw_dw_rq.request_completed.connect(
@@ -142,13 +245,24 @@ func _ready():
 
 	metaverse.download_metaverse_requested.connect(
 			_on_download_metaverse_requested)
-	
-	#_set_status(STATUS_LOCAL.CHECK_INFO_SOFTWARE_UPDATES_REQUESTED)
-	_set_status(STATUS_LOCAL.WAIT)
+
+	_set_status(STATUS_LOCAL.CHECK_INFO_SOFTWARE_UPDATES_REQUESTED)
+	_set_entry_0_status(STATUS_LOCAL.CHECK_INFO_SOFTWARE_UPDATES_REQUESTED)
+#	DEBUG
+#	_set_status(STATUS_LOCAL.WAIT)
+#	_set_entry_0_status(STATUS_LOCAL.WAIT)
 	_is_ready = true
-	
+
 
 # ----- remaining built-in virtual methods
+
+## write version file concerning this application
+func _enter_tree():
+	var args = OS.get_cmdline_user_args()
+	if "-m4dver" in args:
+		_write_version()
+		get_tree().quit()
+
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(_delta):
@@ -188,8 +302,8 @@ func _process(_delta):
 				STATUS_LOCAL.SW_DW_INFO_WAIT:
 					_child_update_download_info()
 
-				STATUS_LOCAL.SW_DOWNLOAD_ULC:
-					_sw_download_ulc()
+				STATUS_LOCAL.SW_CHECK_ULC:
+					_sw_check_ulc()
 
 				STATUS_LOCAL.SW_DW_BRICKS:
 					_sw_dw_bricks()
@@ -219,6 +333,94 @@ func _process(_delta):
 # ----- public methods
 
 # ----- private methods
+## write version file
+func _write_version():
+		var json_data = JSON.stringify(M4DVERSION)
+		var base_dir = OS.get_executable_path().get_base_dir()
+		if OS.has_feature('editor'):
+			base_dir = EDITOR_DBG_BASE_PATH
+		var file_name = base_dir + "/" + M4DNAME + ".json"
+		var file = FileAccess.open(file_name, FileAccess.WRITE)
+		if file != null:
+			file.store_string(json_data)
+			file.flush()
+
+## build dinamic paths
+func _build_paths():
+	_wk_path = "%s/%s" % [_base_path, WK_PATH] 
+	_updater_path = "%s/%s" % [_wk_path , UPDATER_NAME]
+	_core_path = "%s/%s" % [_wk_path , CORE_NAME]
+	_updates_path = "%s/%s" % [_wk_path , UPDATES_DIR]
+	_mapod4d_debug(_wk_path)
+	_mapod4d_debug(_updater_path)
+
+
+## make directory
+func _make_dir(path):
+	if _base_dir != null:
+		if _base_dir.dir_exists(path) == false:
+			_base_dir.make_dir(path)
+
+
+## build base directory structure or get it
+func _build_dirs():
+	if _base_path != null:
+		_base_dir = DirAccess.open(_base_path)
+		_make_dir(_wk_path)
+		_make_dir(_updates_path)
+
+
+func _read_version(file_name):
+	pass
+
+
+## write updater version json
+func _write_updater_version():
+	if _base_dir != null:
+		if _base_dir.file_exists(_updater_path):
+			var updater_exe = "%s%s" % [_updater_path, _os_info.exe_ext]
+			var exit_code = OS.execute(updater_exe, ["++", "-m4dver"])
+		else:
+			var version_file = "%s%s" % [_updater_path, ".json"]
+			var json_data = JSON.stringify(M4D0VERSION)
+			var file = FileAccess.open(version_file, FileAccess.WRITE)
+			if file != null:
+				file.store_string(json_data)
+				file.flush()
+
+
+## write core version json
+func _write_core_version():
+	if _base_dir != null:
+		if _base_dir.file_exists(_core_path):
+			var core_exe = "%s%s" % [_core_path, _os_info.exe_ext]
+			var exit_code = OS.execute(core_exe, ["++", "-m4dver"])
+		else:
+			var version_file = "%s%s" % [_core_path, ".json"]
+			var json_data = JSON.stringify(M4D0VERSION)
+			var file = FileAccess.open(version_file, FileAccess.WRITE)
+			if file != null:
+				file.store_string(json_data)
+				file.flush()
+
+
+## prevent multiple instance
+func _block_istance():
+	## create server and prevent multiple instance
+	_server = TCPServer.new()
+	var error = _server.listen(BLOCK_ISTANCE_PORT, "127.0.0.1")
+	if error != OK:
+		get_tree().quit()
+#	## test on linux
+#	var dor = DirAccess.open('.')
+#	if dor.file_exists('poppo.lck'):
+#		if dor.remove('poppo.lck') == OK:
+#			FileAccess.open('aaa', FileAccess.WRITE)
+#		else:
+#			FileAccess.open('bbb', FileAccess.WRITE)
+#			get_tree().quit()
+#	poppo = FileAccess.open('poppo.lck', FileAccess.WRITE)
+
 
 ## utility status to string
 func _status_to_str():
@@ -255,8 +457,8 @@ func _status_to_str():
 			ret_val = "SW_DW_INFO_REQUESTED"
 		STATUS_LOCAL.SW_DW_INFO_WAIT:
 			ret_val = "SW_DW_INFO_WAIT"
-		STATUS_LOCAL.SW_DOWNLOAD_ULC:
-			ret_val = "SW_DOWNLOAD_ULC"
+		STATUS_LOCAL.SW_CHECK_ULC:
+			ret_val = "SW_CHECK_ULC"
 		STATUS_LOCAL.SW_DW_BRICKS:
 			ret_val = "SW_DW_BRICKS"
 		STATUS_LOCAL.SW_DW_BRICK_WAIT:
@@ -330,8 +532,14 @@ func _mapod4d_debug(data):
 
 
 ## reset info status
-func _reset_info_and_wait():
+func _reset_info_and_wait(error=null):
 	_mapod4d_debug_status()
+	## error operation
+	if error != null:
+		var entry_0_status = _get_entry_0_status()
+		match entry_0_status:
+			STATUS_LOCAL.WAIT:
+				pass
 	# commons
 	_op_type = OP_TYPE_LOCAL.NONE
 	_current_brick = 0
@@ -366,13 +574,24 @@ func _reset_info_and_wait():
 
 
 ## set new status
-func _set_status(status):
+func _set_status(status:STATUS_LOCAL):
 	_status = status
 
 
 ## return current status
 func _get_status():
 	return _status
+
+
+## set new status
+func _set_entry_0_status(status:STATUS_LOCAL):
+	_entry_0_status = status
+
+
+## return current status
+func _get_entry_0_status():
+	return _entry_0_status
+
 
 ## send info to child
 func _child_update_msg(msg):
@@ -405,6 +624,7 @@ func _child_update_download_info():
 				_which.update_download_info(data)
 
 
+
 ## SOFTWARES SECTION
 
 func _sw_dw_completed():
@@ -425,6 +645,7 @@ func _on_info_software_requested(
 	_destination = destination
 	_which = which
 	_set_status(STATUS_LOCAL.SW_INFO_REQUESTED)
+	_set_entry_0_status(STATUS_LOCAL.SW_INFO_REQUESTED)
 
 
 ## ENTRY 0 start software download
@@ -440,6 +661,7 @@ func _on_download_software_requested(
 	_destination = destination
 	_which = which
 	_set_status(STATUS_LOCAL.SW_DW_INFO_REQUESTED)
+	_set_entry_0_status(STATUS_LOCAL.SW_DW_INFO_REQUESTED)
 
 
 ## ENTRY 0 start software check updates download
@@ -447,7 +669,10 @@ func _on_check_info_software_updates_requested(which):
 	_reset_info_and_wait()
 	_mapod4d_debug_status()
 	_which = which
+	_child_update_msg(tr("LOOKFORUPD"))
 	_set_status(STATUS_LOCAL.SW_UPDATER_REQUEST_LOAD)
+	_set_entry_0_status(STATUS_LOCAL.SW_UPDATER_REQUEST_LOAD)
+
 
 ## download software requested
 func _sw_info_request_load():
@@ -536,21 +761,13 @@ func _on_sw_dw_info_completed(result, _response_code, _headers, body):
 				elif status == STATUS_LOCAL.SW_INFO_CORE_WAIT:
 					_info_saved['core'] = _info
 					_mapod4d_debug("SAVED INFO" + str(_info_saved))
-					_set_status(STATUS_LOCAL.SW_DOWNLOAD_ULC)
+					_set_status(STATUS_LOCAL.SW_CHECK_ULC)
 		else:
 			_child_update_msg("ERROR API NOT FOUND")
 			_reset_info_and_wait()
 	else:
 		_child_update_msg("HTTPS REQUEST ERROR")
 		_reset_info_and_wait()
-
-
-## software updater, launcher and core decide to download
-func _sw_download_ulc():
-	# if updater is new copy it
-	# if launcher is new exit and exec launcher
-	# if core is new  copy it
-	_reset_info_and_wait()
 
 
 ## software download bricks X
@@ -587,6 +804,21 @@ func _on_sw_dw_brick_completed(result, response_code, _headers, _body):
 		## htpp error
 		_child_update_msg("ERROR HTTP")
 		_reset_info_and_wait()
+
+
+## write updater software version and core software version
+func _sw_check_ulc():
+	_write_updater_version()
+	_write_core_version()
+	_reset_info_and_wait()
+
+
+
+
+
+
+
+
 
 
 ## METAVERSES SECTION

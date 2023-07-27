@@ -10,7 +10,7 @@ config_version=5
 
 [application]
 
-config/name="MAPOD4D Launcer M"
+config/name="MAPOD4D Launcer M C2"
 run/main_scene="res://launcherm.tscn"
 config/features=PackedStringArray("4.1", "Forward Plus")
 config/icon="res://icon.svg"
