@@ -21,6 +21,7 @@ enum STATUS_LOCAL {
 	WAIT = 0,
 	
 	CHECK_INFO_SOFTWARE_UPDATES_REQUESTED,
+	SOFTWARE_UPDATES_REQUESTED,
 
 	SW_UPDATER_REQUEST_LOAD,
 	SW_LAUNCHER_REQUEST_LOAD,
@@ -237,6 +238,9 @@ func _ready():
 
 	software.check_info_software_updates_requested.connect(
 			_on_check_info_software_updates_requested)
+	software.software_updates_requested.connect(
+			_on_software_updates_requested)
+	
 	software.download_software_requested.connect(
 			_on_download_software_requested)
 	software.info_software_requested.connect(
@@ -271,6 +275,9 @@ func _process(_delta):
 			match _status:
 				STATUS_LOCAL.CHECK_INFO_SOFTWARE_UPDATES_REQUESTED:
 					_on_check_info_software_updates_requested(software)
+				
+				STATUS_LOCAL.SOFTWARE_UPDATES_REQUESTED:
+					_on_software_updates_requested(software)
 				
 				STATUS_LOCAL.SW_UPDATER_REQUEST_LOAD, \
 				STATUS_LOCAL.SW_LAUNCHER_REQUEST_LOAD, \
@@ -565,13 +572,8 @@ func _mapod4d_debug(data):
 ## reset info status
 func _reset_info_and_wait(error=null):
 	_mapod4d_debug_status()
-	## error operation
-	if error != null:
-		var entry_0_status = _get_entry_0_status()
-		match entry_0_status:
-			STATUS_LOCAL.WAIT:
-				pass
-	# commons
+	_end_of_flow(error)
+	# reset
 	_op_type = OP_TYPE_LOCAL.NONE
 	_current_brick = 0
 	_dw_name = null
@@ -600,8 +602,28 @@ func _reset_info_and_wait(error=null):
 
 	## metaverse download vars
 	_mapod4d_ver = null
+	_set_entry_0_status(STATUS_LOCAL.WAIT)
 	_set_status(STATUS_LOCAL.WAIT)
 	_mapod4d_debug_status()
+
+
+## end of flow
+func _end_of_flow(error):
+	var entry_0_status = _get_entry_0_status()
+	var status = _get_status()
+	match entry_0_status:
+		STATUS_LOCAL.WAIT:
+			pass
+		STATUS_LOCAL.CHECK_INFO_SOFTWARE_UPDATES_REQUESTED:
+			if error == null:
+				if status == STATUS_LOCAL.SW_CHECK_ULC:
+					if _update_core or _update_launcher or _update_updater:
+						_child_update_msg(tr("UPDFOUND"))
+						software.enable_update_button()
+					else:
+						_child_update_msg(tr("NOUPDFOUND"))
+			else:
+				_child_update_msg(tr(error))
 
 
 ## set new status
@@ -695,14 +717,24 @@ func _on_download_software_requested(
 	_set_entry_0_status(STATUS_LOCAL.SW_DW_INFO_REQUESTED)
 
 
-## ENTRY 0 start software check updates download
+## ENTRY 0 start software check updates
 func _on_check_info_software_updates_requested(which):
 	_reset_info_and_wait()
+	_set_entry_0_status(STATUS_LOCAL.CHECK_INFO_SOFTWARE_UPDATES_REQUESTED)
 	_mapod4d_debug_status()
 	_which = which
 	_child_update_msg(tr("LOOKFORUPD"))
 	_set_status(STATUS_LOCAL.SW_UPDATER_REQUEST_LOAD)
-	_set_entry_0_status(STATUS_LOCAL.SW_UPDATER_REQUEST_LOAD)
+
+
+## ENTRY 0 start software updates
+func _on_software_updates_requested(which):
+	_reset_info_and_wait()
+	_set_entry_0_status(STATUS_LOCAL.SOFTWARE_UPDATES_REQUESTED)
+	_mapod4d_debug_status()
+	_which = which
+	_child_update_msg(tr("LOOKFORUPD"))
+	_set_status(STATUS_LOCAL.SW_UPDATER_REQUEST_LOAD)
 
 
 ## download software requested

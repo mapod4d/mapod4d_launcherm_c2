@@ -1,10 +1,11 @@
-[gd_scene load_steps=12 format=3 uid="uid://cqj5peget8xrm"]
+[gd_scene load_steps=13 format=3 uid="uid://cqj5peget8xrm"]
 
 [ext_resource type="Script" path="res://launcherm.gd" id="1_h8705"]
 [ext_resource type="Script" path="res://software.gd" id="2_820pk"]
 [ext_resource type="StyleBox" uid="uid://duy8ug8mi5dks" path="res://styles/msg.tres" id="3_0dnsl"]
 [ext_resource type="StyleBox" uid="uid://dgxx5r46100nm" path="res://styles/button_normal.tres" id="3_8airf"]
 [ext_resource type="StyleBox" uid="uid://rg75dwd6lygw" path="res://styles/button_disabled.tres" id="4_klrmy"]
+[ext_resource type="StyleBox" uid="uid://dq5itgewa8rpn" path="res://styles/button_focus_hover.tres" id="5_j7kw1"]
 [ext_resource type="Script" path="res://metaverse.gd" id="5_p7o53"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_83g86"]
@@ -102,12 +103,17 @@ layout_mode = 2
 theme_override_constants/separation = 15
 
 [node name="UpdateSoftware" type="Button" parent="TabContainer/Software/MarginContainer/VBoxContainer/MarginContainerButtons/VBoxContainer"]
+unique_name_in_owner = true
 layout_mode = 2
+theme_override_colors/font_hover_color = Color(0, 0, 0, 1)
 theme_override_styles/normal = ExtResource("3_8airf")
+theme_override_styles/hover = ExtResource("5_j7kw1")
 theme_override_styles/disabled = ExtResource("4_klrmy")
+theme_override_styles/focus = ExtResource("5_j7kw1")
+disabled = true
 text = "UPDATE_SW"
 
-[node name="Download" type="Button" parent="TabContainer/Software/MarginContainer/VBoxContainer/MarginContainerButtons/VBoxContainer"]
+[node name="DownloadSoftware" type="Button" parent="TabContainer/Software/MarginContainer/VBoxContainer/MarginContainerButtons/VBoxContainer"]
 layout_mode = 2
 theme_override_styles/normal = ExtResource("3_8airf")
 text = "Download"
@@ -160,6 +166,4 @@ accept_gzip = false
 
 [node name="HTTPMTRequestDownload" type="HTTPRequest" parent="."]
 
-[connection signal="pressed" from="TabContainer/Software/MarginContainer/VBoxContainer/MarginContainerButtons/VBoxContainer/UpdateSoftware" to="TabContainer/Software" method="_on_update_software_pressed"]
-[connection signal="pressed" from="TabContainer/Software/MarginContainer/VBoxContainer/MarginContainerButtons/VBoxContainer/Download" to="TabContainer/Software" method="_on_download_pressed"]
 [connection signal="pressed" from="TabContainer/Metaverse/Download" to="TabContainer/Metaverse" method="_on_download_pressed"]
