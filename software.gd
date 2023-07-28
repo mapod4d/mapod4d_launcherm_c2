@@ -19,9 +19,9 @@ signal download_software_requested(
 signal info_software_requested(
 		software_name, ext, sysop, tmp_dir, destination, which)
 ## base check for sotware updates
-signal check_info_software_updates_requested(which)
+signal check_info_sw_updates_requested(which)
 ## sotware updates
-signal software_updates_requested(which)
+signal sw_updates_requested(which)
 
 # ----- enums
 
@@ -79,7 +79,7 @@ func enable_update_button():
 func _on_update_software_pressed():
 	info.text = ""
 	emit_signal(
-			"software_updates_requested",
+			"sw_updates_requested",
 			self
 	)
 

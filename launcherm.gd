@@ -20,12 +20,12 @@ extends Control
 enum STATUS_LOCAL {
 	WAIT = 0,
 	
-	CHECK_INFO_SOFTWARE_UPDATES_REQUESTED,
-	SOFTWARE_UPDATES_REQUESTED,
+	CHECK_INFO_SW_UPDATES_REQUESTED,
+	SW_UPDATES_REQUESTED,
 
-	SW_UPDATER_REQUEST_LOAD,
-	SW_LAUNCHER_REQUEST_LOAD,
-	SW_CORE_REQUEST_LOAD,
+	SW_UPDATER_REQUEST_INIT,
+	SW_LAUNCHER_REQUEST_INIT,
+	SW_CORE_REQUEST_INIT,
 
 	SW_INFO_REQUESTED,
 	SW_INFO_UPDATER_REQUESTED,
@@ -99,13 +99,15 @@ const WK_PATH = 'wk'
 const UPDATER_NAME = "updater"
 const CORE_NAME = "mapo4d"
 const UPDATES_DIR = "updates"
+const TMP_DIR = "tmp"
+
 const MULTIVSVR = "https://sv001.mapod4d.it"
 const MULTIVSVR_PORT = 80
 const BUF_NAME = "buf_"
 const CHUNKSIZE = 550000
 const CHUNKSIZE_MULTI = 1000
 const BLOCK_ISTANCE_PORT = 2000
-const EDITOR_DBG_BASE_PATH = "test"
+const EDITOR_DBG_BASE_PATH = "res://test"
 
 
 
@@ -114,6 +116,11 @@ const EDITOR_DBG_BASE_PATH = "test"
 # ----- public variables
 
 # ----- private variables
+## enable debug messages
+var _mapod4d_debug_flag: bool = false
+## enable debug status flux messages
+var _mapod4d_debug_status_flag: bool = true
+
 ## this application codified version
 var _m4dsversion = null
 
@@ -124,11 +131,11 @@ var _status = STATUS_LOCAL.WAIT
 var _entry_0_status = STATUS_LOCAL.WAIT
 
 ## dinamic paths 
-var _base_dir = null
-var _updater_path = null
-var _core_path = null
-var _wk_path = null
-var _updates_path = null
+var _build_updater_path = null
+var _build_core_path = null
+var _build_wk_path = null
+var _build_updates_path = null
+var _build_tmp_dir = null
 
 
 ## general
@@ -140,13 +147,9 @@ var _os_info = {
 	"os": null,
 	"exe_ext": ""
 }
+var _base_dir = null
 
 ## local support
-## enable debug messages
-var _mapod4d_debug_flag: bool = true
-## enable debug status flux messages
-var _mapod4d_debug_status_flag: bool = true
-
 var _mapod4d_debug_line: int = 0
 var _is_ready = false
 
@@ -168,8 +171,8 @@ var _brick_name = null
 var _current_merging_brick = 0
 var _current_chunk = 0
 var _software_name = null
-var _sysop = null
 var _tmp_dir = null
+var _sysop = null
 var _destination = null
 var _which = null
 
@@ -236,21 +239,21 @@ func _ready():
 	http_sw_dw_rq.request_completed.connect(
 			_on_sw_dw_brick_completed)
 
-	software.check_info_software_updates_requested.connect(
-			_on_check_info_software_updates_requested)
-	software.software_updates_requested.connect(
-			_on_software_updates_requested)
+	software.check_info_sw_updates_requested.connect(
+			_on_check_info_sw_updates_requested)
+	software.sw_updates_requested.connect(
+			_on_sw_updates_requested)
 	
 	software.download_software_requested.connect(
-			_on_download_software_requested)
+			_on_software_dw_info_requested)
 	software.info_software_requested.connect(
 			_on_info_software_requested)
 
 	metaverse.download_metaverse_requested.connect(
 			_on_download_metaverse_requested)
 
-	_set_status(STATUS_LOCAL.CHECK_INFO_SOFTWARE_UPDATES_REQUESTED)
-	_set_entry_0_status(STATUS_LOCAL.CHECK_INFO_SOFTWARE_UPDATES_REQUESTED)
+	_set_status(STATUS_LOCAL.CHECK_INFO_SW_UPDATES_REQUESTED)
+	_set_entry_0_status(STATUS_LOCAL.CHECK_INFO_SW_UPDATES_REQUESTED)
 #	DEBUG
 #	_set_status(STATUS_LOCAL.WAIT)
 #	_set_entry_0_status(STATUS_LOCAL.WAIT)
@@ -273,16 +276,16 @@ func _process(_delta):
 	if _is_ready and _local_lock != true:
 		if _status != STATUS_LOCAL.WAIT:
 			match _status:
-				STATUS_LOCAL.CHECK_INFO_SOFTWARE_UPDATES_REQUESTED:
-					_on_check_info_software_updates_requested(software)
+				STATUS_LOCAL.CHECK_INFO_SW_UPDATES_REQUESTED:
+					_check_info_sw_updates_requested(software)
 				
-				STATUS_LOCAL.SOFTWARE_UPDATES_REQUESTED:
-					_on_software_updates_requested(software)
+				STATUS_LOCAL.SW_UPDATES_REQUESTED:
+					_sw_updates_requested(software)
 				
-				STATUS_LOCAL.SW_UPDATER_REQUEST_LOAD, \
-				STATUS_LOCAL.SW_LAUNCHER_REQUEST_LOAD, \
-				STATUS_LOCAL.SW_CORE_REQUEST_LOAD:
-					_sw_info_request_load()
+				STATUS_LOCAL.SW_UPDATER_REQUEST_INIT, \
+				STATUS_LOCAL.SW_LAUNCHER_REQUEST_INIT, \
+				STATUS_LOCAL.SW_CORE_REQUEST_INIT:
+					_sw_request_init()
 				
 				## simple file updater info request
 				STATUS_LOCAL.SW_INFO_REQUESTED, \
@@ -306,7 +309,7 @@ func _process(_delta):
 				STATUS_LOCAL.SW_INFO_CORE_WAIT, \
 				## file info request to download wait
 				STATUS_LOCAL.SW_DW_INFO_WAIT:
-					_child_update_download_info()
+					_update_info_wait()
 
 				STATUS_LOCAL.SW_CHECK_ULC:
 					_sw_check_ulc()
@@ -314,7 +317,7 @@ func _process(_delta):
 				STATUS_LOCAL.SW_DW_BRICKS:
 					_sw_dw_bricks()
 				STATUS_LOCAL.SW_DW_BRICK_WAIT:
-					_child_update_download_info()
+					_update_info_wait()
 				STATUS_LOCAL.SW_DW_COMPLETED:
 					_sw_dw_completed()
 
@@ -353,27 +356,29 @@ func _write_version():
 
 ## build dinamic paths
 func _build_paths():
-	_wk_path = "%s/%s" % [_base_path, WK_PATH] 
-	_updater_path = "%s/%s" % [_wk_path , UPDATER_NAME]
-	_core_path = "%s/%s" % [_wk_path , CORE_NAME]
-	_updates_path = "%s/%s" % [_wk_path , UPDATES_DIR]
-	_mapod4d_debug(_wk_path)
-	_mapod4d_debug(_updater_path)
+	_build_wk_path = "%s/%s" % [_base_path, WK_PATH] 
+	_build_updater_path = "%s/%s" % [_build_wk_path , UPDATER_NAME]
+	_build_core_path = "%s/%s" % [_build_wk_path , CORE_NAME]
+	_build_updates_path = "%s/%s" % [_build_wk_path , UPDATES_DIR]
+	_build_tmp_dir = "%s/%s" % [_build_wk_path , TMP_DIR]
+	_mapod4d_debug(_build_wk_path)
 
 
 ## make directory
 func _make_dir(path):
 	if _base_dir != null:
 		if _base_dir.dir_exists(path) == false:
-			_base_dir.make_dir(path)
+			var error = _base_dir.make_dir(path)
+			pass
 
 
 ## build base directory structure or get it
 func _build_dirs():
 	if _base_path != null:
 		_base_dir = DirAccess.open(_base_path)
-		_make_dir(_wk_path)
-		_make_dir(_updates_path)
+		_make_dir(_build_wk_path)
+		_make_dir(_build_updates_path)
+		_make_dir(_build_tmp_dir)
 
 
 func _sversion(v1, v2, v3, v4):
@@ -415,11 +420,11 @@ func _read_version(file_name):
 ## write updater version json
 func _write_updater_version():
 	if _base_dir != null:
-		if _base_dir.file_exists(_updater_path):
-			var updater_exe = "%s%s" % [_updater_path, _os_info.exe_ext]
+		if _base_dir.file_exists(_build_updater_path):
+			var updater_exe = "%s%s" % [_build_updater_path, _os_info.exe_ext]
 			var _exit_code = OS.execute(updater_exe, ["++", "-m4dver"])
 		else:
-			var version_file = "%s%s" % [_updater_path, ".json"]
+			var version_file = "%s%s" % [_build_updater_path, ".json"]
 			var json_data = JSON.stringify(M4D0VERSION)
 			var file = FileAccess.open(version_file, FileAccess.WRITE)
 			if file != null:
@@ -430,11 +435,11 @@ func _write_updater_version():
 ## write core version json
 func _write_core_version():
 	if _base_dir != null:
-		if _base_dir.file_exists(_core_path):
-			var core_exe = "%s%s" % [_core_path, _os_info.exe_ext]
+		if _base_dir.file_exists(_build_core_path):
+			var core_exe = "%s%s" % [_build_core_path, _os_info.exe_ext]
 			var _exit_code = OS.execute(core_exe, ["++", "-m4dver"])
 		else:
-			var version_file = "%s%s" % [_core_path, ".json"]
+			var version_file = "%s%s" % [_build_core_path, ".json"]
 			var json_data = JSON.stringify(M4D0VERSION)
 			var file = FileAccess.open(version_file, FileAccess.WRITE)
 			if file != null:
@@ -467,14 +472,16 @@ func _status_to_str():
 	match status:
 		STATUS_LOCAL.WAIT:
 			ret_val = "WAIT"
-		STATUS_LOCAL.CHECK_INFO_SOFTWARE_UPDATES_REQUESTED:
-			ret_val = "CHECK_INFO_SOFTWARE_UPDATES_REQUESTED"
-		STATUS_LOCAL.SW_UPDATER_REQUEST_LOAD:
-			ret_val = "SW_UPDATER_REQUEST_LOAD"
-		STATUS_LOCAL.SW_LAUNCHER_REQUEST_LOAD:
-			ret_val = "SW_LAUNCHER_REQUEST_LOAD"
-		STATUS_LOCAL.SW_CORE_REQUEST_LOAD:
-			ret_val = "SW_CORE_REQUEST_LOAD"
+		STATUS_LOCAL.CHECK_INFO_SW_UPDATES_REQUESTED:
+			ret_val = "CHECK_INFO_SW_UPDATES_REQUESTED"
+		STATUS_LOCAL.SW_UPDATES_REQUESTED:
+			ret_val = "SW_UPDATES_REQUESTED"
+		STATUS_LOCAL.SW_UPDATER_REQUEST_INIT:
+			ret_val = "SW_UPDATER_REQUEST_INIT"
+		STATUS_LOCAL.SW_LAUNCHER_REQUEST_INIT:
+			ret_val = "SW_LAUNCHER_REQUEST_INIT"
+		STATUS_LOCAL.SW_CORE_REQUEST_INIT:
+			ret_val = "SW_CORE_REQUEST_INIT"
 		STATUS_LOCAL.SW_INFO_REQUESTED:
 			ret_val = "SW_INFO_REQUESTED"
 		STATUS_LOCAL.SW_INFO_UPDATER_REQUESTED:
@@ -592,8 +599,8 @@ func _reset_info_and_wait(error=null):
 	_current_merging_brick = 0
 	_current_chunk = 0
 	_software_name = null
-	_sysop = null
 	_tmp_dir = null
+	_sysop = null
 	_destination = null
 	_which = null
 
@@ -614,7 +621,7 @@ func _end_of_flow(error):
 	match entry_0_status:
 		STATUS_LOCAL.WAIT:
 			pass
-		STATUS_LOCAL.CHECK_INFO_SOFTWARE_UPDATES_REQUESTED:
+		STATUS_LOCAL.CHECK_INFO_SW_UPDATES_REQUESTED:
 			if error == null:
 				if status == STATUS_LOCAL.SW_CHECK_ULC:
 					if _update_core or _update_launcher or _update_updater:
@@ -658,7 +665,8 @@ func _child_update_merge_info(data):
 		_which.update_merge_info(data)
 
 
-func _child_update_download_info():
+## update child info general download
+func _update_info_wait():
 	if http_sw_dw_rq.get_http_client_status() == 7:
 		var bs = http_sw_dw_rq.get_downloaded_bytes() 
 		var db = http_sw_dw_rq.get_body_size()
@@ -685,7 +693,7 @@ func _sw_dw_completed():
 	_reset_info_and_wait()
 
 
-## ENTRY 0 start software simple info request
+## DA NON FARE ENTRY 0 start software simple info request
 func _on_info_software_requested(
 		software_name, ext, sysop, tmp_dir, destination, which):
 	_reset_info_and_wait()
@@ -698,13 +706,15 @@ func _on_info_software_requested(
 	_destination = destination
 	_which = which
 	_set_status(STATUS_LOCAL.SW_INFO_REQUESTED)
-	_set_entry_0_status(STATUS_LOCAL.SW_INFO_REQUESTED)
+
+
 
 
 ## ENTRY 0 start software download
-func _on_download_software_requested(
+func _on_software_dw_info_requested(
 		software_name, ext, sysop, tmp_dir, destination, which):
 	_reset_info_and_wait()
+	_set_entry_0_status(STATUS_LOCAL.SW_DW_INFO_REQUESTED)
 	_mapod4d_debug_status()
 	_op_type = OP_TYPE_LOCAL.SW_DW
 	_software_name = software_name
@@ -714,49 +724,64 @@ func _on_download_software_requested(
 	_destination = destination
 	_which = which
 	_set_status(STATUS_LOCAL.SW_DW_INFO_REQUESTED)
-	_set_entry_0_status(STATUS_LOCAL.SW_DW_INFO_REQUESTED)
+
+
+## -------------------------------------- REORDER
+
+## event request start software check updates
+func _on_check_info_sw_updates_requested(which):
+	_check_info_sw_updates_requested(which)
+
+
+## event request start software updates
+func _on_sw_updates_requested(which):
+	_sw_updates_requested(which)
 
 
 ## ENTRY 0 start software check updates
-func _on_check_info_software_updates_requested(which):
+func _check_info_sw_updates_requested(which):
 	_reset_info_and_wait()
-	_set_entry_0_status(STATUS_LOCAL.CHECK_INFO_SOFTWARE_UPDATES_REQUESTED)
+	_set_entry_0_status(STATUS_LOCAL.CHECK_INFO_SW_UPDATES_REQUESTED)
 	_mapod4d_debug_status()
 	_which = which
 	_child_update_msg(tr("LOOKFORUPD"))
-	_set_status(STATUS_LOCAL.SW_UPDATER_REQUEST_LOAD)
+	_set_status(STATUS_LOCAL.SW_UPDATER_REQUEST_INIT)
 
 
 ## ENTRY 0 start software updates
-func _on_software_updates_requested(which):
+func _sw_updates_requested(which):
 	_reset_info_and_wait()
-	_set_entry_0_status(STATUS_LOCAL.SOFTWARE_UPDATES_REQUESTED)
+	_set_entry_0_status(STATUS_LOCAL.SW_UPDATES_REQUESTED)
 	_mapod4d_debug_status()
 	_which = which
 	_child_update_msg(tr("LOOKFORUPD"))
-	_set_status(STATUS_LOCAL.SW_UPDATER_REQUEST_LOAD)
+	_set_status(STATUS_LOCAL.SW_UPDATER_REQUEST_INIT)
 
 
-## download software requested
-func _sw_info_request_load():
+## init software requested
+func _sw_request_init():
 	_mapod4d_debug_status()
 	_op_type = OP_TYPE_LOCAL.SW_DW
-	_tmp_dir = "files/tmp"
+	_tmp_dir = _build_tmp_dir
 	var status = _get_status()
 	match status:
-		STATUS_LOCAL.SW_UPDATER_REQUEST_LOAD:
+		STATUS_LOCAL.SW_UPDATER_REQUEST_INIT:
 			_software_name = "updater"
 			_ext = _os_info.exe_ext
 			_sysop = _os_info.os
-			_destination = "files/updater"
-			_set_status(STATUS_LOCAL.SW_INFO_UPDATER_REQUESTED)
-		STATUS_LOCAL.SW_LAUNCHER_REQUEST_LOAD:
+			_destination = _build_updater_path
+			var entry_0_status = _get_entry_0_status()
+			if entry_0_status == STATUS_LOCAL.SW_UPDATES_REQUESTED:
+				_set_status(STATUS_LOCAL.SW_DW_INFO_REQUESTED)
+			else:
+				_set_status(STATUS_LOCAL.SW_INFO_UPDATER_REQUESTED)
+		STATUS_LOCAL.SW_LAUNCHER_REQUEST_INIT:
 			_software_name = "launcher"
 			_ext = _os_info.exe_ext
 			_sysop = _os_info.os
 			_destination = "files/launcher"
 			_set_status(STATUS_LOCAL.SW_INFO_LAUNCHER_REQUESTED)
-		STATUS_LOCAL.SW_CORE_REQUEST_LOAD:
+		STATUS_LOCAL.SW_CORE_REQUEST_INIT:
 			_software_name = "softwaretest"
 			_ext = ".exe"
 			_sysop = "L00"
@@ -810,6 +835,10 @@ func _on_sw_dw_info_completed(result, _response_code, _headers, body):
 					#_info.bricks = 1
 					#_info.compressed = false
 					# SOLO DEBUG FINE
+					#if _info.bricks == 0:
+					#	_reset_info_and_wait()
+					#else:
+					#	_set_status(STATUS_LOCAL.SW_DW_BRICKS)
 					_set_status(STATUS_LOCAL.SW_DW_BRICKS)
 				elif status == STATUS_LOCAL.SW_INFO_WAIT:
 					_info_saved['none'] = _info
@@ -817,10 +846,10 @@ func _on_sw_dw_info_completed(result, _response_code, _headers, body):
 					_reset_info_and_wait()
 				elif status == STATUS_LOCAL.SW_INFO_UPDATER_WAIT:
 					_info_saved['updater'] = _info
-					_set_status(STATUS_LOCAL.SW_LAUNCHER_REQUEST_LOAD)
+					_set_status(STATUS_LOCAL.SW_LAUNCHER_REQUEST_INIT)
 				elif status == STATUS_LOCAL.SW_INFO_LAUNCHER_WAIT:
 					_info_saved['launcher'] = _info
-					_set_status(STATUS_LOCAL.SW_CORE_REQUEST_LOAD)
+					_set_status(STATUS_LOCAL.SW_CORE_REQUEST_INIT)
 				elif status == STATUS_LOCAL.SW_INFO_CORE_WAIT:
 					_info_saved['core'] = _info
 					_mapod4d_debug("SAVED INFO" + str(_info_saved))
@@ -877,7 +906,7 @@ func _sw_check_ulc():
 	_update_core = false
 	
 	_write_updater_version()
-	version = _read_version(_updater_path + ".json")
+	version = _read_version(_build_updater_path + ".json")
 	if version.result == true:
 		if version.sversion < _info_saved["updater"].sversion:
 			_update_updater = true
@@ -886,7 +915,7 @@ func _sw_check_ulc():
 		_update_launcher = true
 
 	_write_core_version()
-	version = _read_version(_core_path + ".json")
+	version = _read_version(_build_core_path + ".json")
 	if version.result == true:
 		if version.sversion <  _info_saved["core"].sversion:
 			_update_core = true
@@ -898,7 +927,12 @@ func _sw_check_ulc():
 			"cv": _update_core,
 		}))
 
-	_reset_info_and_wait()
+	var entry_0_status = _get_entry_0_status()
+	if entry_0_status == STATUS_LOCAL.SW_UPDATES_REQUESTED:
+		if _update_updater:
+			_set_status(STATUS_LOCAL.SW_UPDATER_REQUEST_INIT)
+	else:
+		_reset_info_and_wait()
 
 
 

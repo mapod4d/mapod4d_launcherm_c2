@@ -17,21 +17,21 @@ _on_info_software_requested - event generator
 _on_check_info_software_updates_requested - event generator
 01 STATUS_LOCAL.CHECK_INFO_SOFTWARE_UPDATES_REQUESTED:
 			_on_check_info_software_updates_requested
-02 SW_UPDATER_REQUEST_LOAD
+02 SW_UPDATER_REQUEST_INIT
 			_sw_info_request_load - init informations
 03 SW_INFO_UPDATER_REQUESTED
 			_sw_dw_info_requested - request info
 04 SW_INFO_UPDATER_WAIT
 			_child_update_download_info- wait and update info
 			_on_sw_dw_info_completed - end wait
-05 SW_LAUNCHER_REQUEST_LOAD
+05 SW_LAUNCHER_REQUEST_INIT
 			_sw_info_request_load - init informations
 06 SW_INFO_LAUNCHER_REQUESTED
 			_sw_dw_info_requested - request info
 07 SW_INFO_LAUNCHER_WAIT
 			_child_update_download_info- wait and update info
 			_on_sw_dw_info_completed - end wait
-08 SW_CORE_REQUEST_LOAD
+08 SW_CORE_REQUEST_INIT
 			_sw_info_request_load - init informations
 09 SW_INFO_CORE_REQUESTED
 			_sw_dw_info_requested - request info
@@ -46,23 +46,23 @@ _on_check_info_software_updates_requested - event generator
 ## ------------ request info about updater, laucher and core software
 00 WAIT
 _on_software_updates_requested - event generator
-01 STATUS_LOCAL.SOFTWARE_UPDATES_REQUESTED:
-			_on_software_updates_requested
-02 SW_UPDATER_REQUEST_LOAD
+01 STATUS_LOCAL.SW_UPDATES_REQUESTED:
+			software_updates_requested
+02 SW_UPDATER_REQUEST_INIT
 			_sw_info_request_load - init informations
 03 SW_INFO_UPDATER_REQUESTED
 			_sw_dw_info_requested - request info
 04 SW_INFO_UPDATER_WAIT
 			_child_update_download_info- wait and update info
 			_on_sw_dw_info_completed - end wait
-05 SW_LAUNCHER_REQUEST_LOAD
+05 SW_LAUNCHER_REQUEST_INIT
 			_sw_info_request_load - init informations
 06 SW_INFO_LAUNCHER_REQUESTED
 			_sw_dw_info_requested - request info
 07 SW_INFO_LAUNCHER_WAIT
 			_child_update_download_info- wait and update info
 			_on_sw_dw_info_completed - end wait
-08 SW_CORE_REQUEST_LOAD
+08 SW_CORE_REQUEST_INIT
 			_sw_info_request_load - init informations
 09 SW_INFO_CORE_REQUESTED
 			_sw_dw_info_requested - request info
