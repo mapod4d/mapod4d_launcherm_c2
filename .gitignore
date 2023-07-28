@@ -13,8 +13,5 @@
 data_*/
 
 # MAPOD4D
-/files/*
-/files/tmp/*
-!/files
-!/files/tmp/tag
-!/files/tmp
+/test/*
+
