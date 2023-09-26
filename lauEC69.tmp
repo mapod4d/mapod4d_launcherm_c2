@@ -116,7 +116,6 @@ text = "UPDATE_SW"
 [node name="DownloadSoftware" type="Button" parent="TabContainer/Software/MarginContainer/VBoxContainer/MarginContainerButtons/VBoxContainer"]
 layout_mode = 2
 theme_override_styles/normal = ExtResource("3_8airf")
-disabled = true
 text = "Download"
 
 [node name="Metaverse" type="Panel" parent="TabContainer"]

@@ -1,5 +1,36 @@
 ## status fluxes
 
+## ------------ Automatich starting calling
+## ------------ Laucher start entry 0 CHECK_INFO_SW_UPDATES_REQUESTED
+WAIT
+	_ready
+CHECK_INFO_SW_UPDATES_REQUESTED
+	_check_info_sw_updates_requested
+SW_UPDATER_REQUEST_INIT
+	_sw_request_init
+SW_INFO_UPDATER_REQUESTED
+	_sw_dw_info_requested (send http_sw_info_rq.request)
+SW_INFO_UPDATER_WAIT
+	_update_info_wait
+	(end of http_sw_info_rq.request) _on_sw_dw_info_completed
+SW_LAUNCHER_REQUEST_INIT
+
+
+da sistemare
+	
+	_on_sw_dw_info_completed
+	_reset_info_and_wait
+	_end_of_flow
+WAIT
+
+## ------------ _on_sw_updates_requested entry 0 SW_UPDATES_REQUESTED
+
+
+
+
+
+---------------------------- OLD
+
 
 ## ------------ request info about software
 00 WAIT
@@ -18,7 +49,7 @@ _on_check_info_software_updates_requested - event generator
 01 STATUS_LOCAL.CHECK_INFO_SOFTWARE_UPDATES_REQUESTED:
 			_on_check_info_software_updates_requested
 02 SW_UPDATER_REQUEST_INIT
-			_sw_info_request_load - init informations
+			_sw_request_init - init informations
 03 SW_INFO_UPDATER_REQUESTED
 			_sw_dw_info_requested - request info
 04 SW_INFO_UPDATER_WAIT

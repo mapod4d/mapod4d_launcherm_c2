@@ -80,6 +80,7 @@ const M4DVERSION = {
 }
 const M4DNAME = "mapod4d_launcherm"
 
+# default 0 version of M4D
 const M4D0VERSION = {
 	'v1': 0, 
 	'v2': 0,
@@ -252,7 +253,9 @@ func _ready():
 	metaverse.download_metaverse_requested.connect(
 			_on_download_metaverse_requested)
 
+	# current status
 	_set_status(STATUS_LOCAL.CHECK_INFO_SW_UPDATES_REQUESTED)
+	# starting flow status
 	_set_entry_0_status(STATUS_LOCAL.CHECK_INFO_SW_UPDATES_REQUESTED)
 #	DEBUG
 #	_set_status(STATUS_LOCAL.WAIT)
@@ -741,6 +744,7 @@ func _on_sw_updates_requested(which):
 ## ENTRY 0 start software check updates
 func _check_info_sw_updates_requested(which):
 	_reset_info_and_wait()
+	# starting status
 	_set_entry_0_status(STATUS_LOCAL.CHECK_INFO_SW_UPDATES_REQUESTED)
 	_mapod4d_debug_status()
 	_which = which

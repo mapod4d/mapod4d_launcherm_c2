@@ -55,8 +55,6 @@ func _process(_delta):
 
 # ----- public methods
 func update_download_info(data):
-	#print("{info} BS {bs} DB {db} P {perc} BRS {bricks} BR {brick}".format(
-	#		data))
 	info.set_text(
 			"BS {bs} DB {db} P {perc} BRS {bricks} BR {brick}".format(data))
 
