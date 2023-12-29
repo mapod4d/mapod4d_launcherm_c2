@@ -56,9 +56,10 @@ SW_DW_INFO_WAIT
 				SW_DW_COMPLETED
 					_sw_dw_completed
 				SW_DW_RENAME
-					if 
->>>>>>>>>>>>>>>>>>>> copiare il file scaricato se updater
-					_reset_info_and_wait
+					if _software_name == UPDATER_NAME
+>>>>>>>>>>>>>>>>>>>>>>>> rename and next software
+					else
+						_reset_info_and_wait
 				WAIT
 			else
 				MERGE_AND_MOVE_SINGLE_BRICK
