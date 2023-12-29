@@ -10,7 +10,11 @@ config_version=5
 
 [application]
 
-config/name="MAPOD4D Launcer M"
-run/main_scene="res://downloader.tscn"
-config/features=PackedStringArray("4.0", "Forward Plus")
+config/name="MAPOD4D Launcer M C2"
+run/main_scene="res://launcherm.tscn"
+config/features=PackedStringArray("4.2", "Forward Plus")
 config/icon="res://icon.svg"
+
+[internationalization]
+
+locale/translations=PackedStringArray("res://localization/localization.en.translation", "res://localization/localization.it.translation")

@@ -16,6 +16,12 @@ extends Panel
 # ----- signals
 signal download_software_requested(
 		software_name, ext, sysop, tmp_dir, destination, which)
+signal info_software_requested(
+		software_name, ext, sysop, tmp_dir, destination, which)
+## base check for sotware updates
+signal check_info_sw_updates_requested(which)
+## sotware updates
+signal sw_updates_requested(which)
 
 # ----- enums
 
@@ -29,8 +35,8 @@ var c = 0
 # ----- private variables
 
 # ----- onready variables
-@onready var info = $MarginContainer/VBoxContainer/Info
-@onready var info1 = $MarginContainer/VBoxContainer/Info1
+@onready var info = %SoftwareInfo
+@onready var update_button = %UpdateSoftware
 
 # ----- optional built-in virtual _init method
 
@@ -38,7 +44,7 @@ var c = 0
 
 # Called when the node enters the scene tree for the first time.
 func _ready():
-	pass # Replace with function body.
+	update_button.pressed.connect(_on_update_software_pressed)
 
 # ----- remaining built-in virtual methods
 
@@ -46,28 +52,34 @@ func _ready():
 func _process(_delta):
 	pass # Replace with function body.
 
+
 # ----- public methods
 func update_download_info(data):
-	#print("{info} BS {bs} DB {db} P {perc} BRS {bricks} BR {brick}".format(
-	#		data))
 	info.set_text(
-			"BS {bs} DB {db} P {perc} BRS {bricks} BR {brick}".format(data))
-	info1.set_text(
 			"BS {bs} DB {db} P {perc} BRS {bricks} BR {brick}".format(data))
 
 
 func update_merge_info(data):
 	# "file_name" "brick" "bricks" "chunk" "chunks"
 	info.set_text("{file_name} {brick} {bricks} {chunk} {chunks}".format(data))
-	info1.set_text("{file_name} {brick} {bricks} {chunk} {chunks}".format(data))
 
 
 func update_msg(msg_data):
 	#print(str(msg_data))
 	info.set_text(str(msg_data))
-	info1.set_text(str(msg_data))
+
+
+func enable_update_button():
+	update_button.disabled = false
 
 # ----- private methods
+
+func _on_update_software_pressed():
+	info.text = ""
+	emit_signal(
+			"sw_updates_requested",
+			self
+	)
 
 
 func _on_download_pressed():
@@ -81,7 +93,3 @@ func _on_download_pressed():
 			"files/test_merged",
 			self
 	)
-
-
-func _on_check_info_pressed():
-	pass

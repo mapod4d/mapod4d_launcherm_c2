@@ -1,0 +1,170 @@
+[gd_scene load_steps=13 format=3 uid="uid://cqj5peget8xrm"]
+
+[ext_resource type="Script" path="res://launcherm.gd" id="1_h8705"]
+[ext_resource type="Script" path="res://software.gd" id="2_820pk"]
+[ext_resource type="StyleBox" uid="uid://duy8ug8mi5dks" path="res://styles/msg.tres" id="3_0dnsl"]
+[ext_resource type="StyleBox" uid="uid://dgxx5r46100nm" path="res://styles/button_normal.tres" id="3_8airf"]
+[ext_resource type="StyleBox" uid="uid://rg75dwd6lygw" path="res://styles/button_disabled.tres" id="4_klrmy"]
+[ext_resource type="StyleBox" uid="uid://dq5itgewa8rpn" path="res://styles/button_focus_hover.tres" id="5_j7kw1"]
+[ext_resource type="Script" path="res://metaverse.gd" id="5_p7o53"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_83g86"]
+bg_color = Color(0, 0, 0, 1)
+border_width_left = 4
+border_width_right = 4
+border_color = Color(0, 0, 0, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_xavjq"]
+bg_color = Color(0.470588, 0.470588, 0.470588, 1)
+border_width_left = 4
+border_width_right = 4
+border_color = Color(0.470588, 0.470588, 0.470588, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_24f7s"]
+bg_color = Color(0, 0, 0, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_spad7"]
+bg_color = Color(0.384314, 0.384314, 0.384314, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_apn5j"]
+bg_color = Color(0, 0, 0, 1)
+
+[node name="Launcherm" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_h8705")
+
+[node name="TabContainer" type="TabContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/tab_selected = SubResource("StyleBoxFlat_83g86")
+theme_override_styles/tab_unselected = SubResource("StyleBoxFlat_xavjq")
+
+[node name="Software" type="Panel" parent="TabContainer"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_24f7s")
+script = ExtResource("2_820pk")
+
+[node name="MarginContainer" type="MarginContainer" parent="TabContainer/Software"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_top = 16
+
+[node name="VBoxContainer" type="VBoxContainer" parent="TabContainer/Software/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Titolo" type="Label" parent="TabContainer/Software/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "TSMAPO4D"
+horizontal_alignment = 1
+
+[node name="Logo" type="TextureRect" parent="TabContainer/Software/MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="MarginContainerInfo" type="MarginContainer" parent="TabContainer/Software/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/margin_left = 110
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 110
+theme_override_constants/margin_bottom = 24
+
+[node name="SoftwareInfo" type="Label" parent="TabContainer/Software/MarginContainer/VBoxContainer/MarginContainerInfo"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.909804, 0.909804, 0.909804, 1)
+theme_override_colors/font_shadow_color = Color(0.180392, 0.180392, 0.180392, 1)
+theme_override_styles/normal = ExtResource("3_0dnsl")
+
+[node name="MarginContainerButtons" type="MarginContainer" parent="TabContainer/Software/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/margin_left = 140
+theme_override_constants/margin_right = 140
+
+[node name="VBoxContainer" type="VBoxContainer" parent="TabContainer/Software/MarginContainer/VBoxContainer/MarginContainerButtons"]
+layout_mode = 2
+theme_override_constants/separation = 15
+
+[node name="UpdateSoftware" type="Button" parent="TabContainer/Software/MarginContainer/VBoxContainer/MarginContainerButtons/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_hover_color = Color(0, 0, 0, 1)
+theme_override_styles/normal = ExtResource("3_8airf")
+theme_override_styles/hover = ExtResource("5_j7kw1")
+theme_override_styles/disabled = ExtResource("4_klrmy")
+theme_override_styles/focus = ExtResource("5_j7kw1")
+disabled = true
+text = "UPDATE_SW"
+
+[node name="DownloadSoftware" type="Button" parent="TabContainer/Software/MarginContainer/VBoxContainer/MarginContainerButtons/VBoxContainer"]
+layout_mode = 2
+theme_override_styles/normal = ExtResource("3_8airf")
+disabled = true
+text = "Download"
+
+[node name="Metaverse" type="Panel" parent="TabContainer"]
+visible = false
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_spad7")
+script = ExtResource("5_p7o53")
+
+[node name="Download" type="Button" parent="TabContainer/Metaverse"]
+layout_mode = 0
+offset_left = 71.0
+offset_top = 54.0
+offset_right = 158.0
+offset_bottom = 85.0
+text = "Download"
+
+[node name="CheckInfo" type="Button" parent="TabContainer/Metaverse"]
+layout_mode = 0
+offset_left = 178.0
+offset_top = 53.0
+offset_right = 268.0
+offset_bottom = 84.0
+text = "Check Info"
+
+[node name="Info" type="Label" parent="TabContainer/Metaverse"]
+layout_mode = 0
+offset_left = 74.0
+offset_top = 106.0
+offset_right = 1021.0
+offset_bottom = 129.0
+theme_override_colors/font_color = Color(0.909804, 0.909804, 0.909804, 1)
+theme_override_colors/font_shadow_color = Color(0.180392, 0.180392, 0.180392, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_apn5j")
+
+[node name="Info1" type="RichTextLabel" parent="TabContainer/Metaverse"]
+layout_mode = 0
+offset_left = 80.0
+offset_top = 147.0
+offset_right = 1015.0
+offset_bottom = 208.0
+
+[node name="HTTPSWRequestInfo" type="HTTPRequest" parent="."]
+
+[node name="HTTPSWRequestDownload" type="HTTPRequest" parent="."]
+accept_gzip = false
+
+[node name="HTTPMTRequestInfo" type="HTTPRequest" parent="."]
+
+[node name="HTTPMTRequestDownload" type="HTTPRequest" parent="."]
+
+[connection signal="pressed" from="TabContainer/Metaverse/Download" to="TabContainer/Metaverse" method="_on_download_pressed"]

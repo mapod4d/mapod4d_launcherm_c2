@@ -1,0 +1,190 @@
+## status fluxes
+
+## ------------ Automatich starting calling
+## ------------ Laucher start entry 0 CHECK_INFO_SW_UPDATES_REQUESTED
+WAIT
+	_ready
+CHECK_INFO_SW_UPDATES_REQUESTED
+	_check_info_sw_updates_requested
+SW_UPDATER_REQUEST_INIT
+	_sw_request_init
+SW_INFO_UPDATER_REQUESTED
+	_sw_dw_info_requested (send http_sw_info_rq.request)
+SW_INFO_UPDATER_WAIT
+	_update_info_wait
+	(end of http_sw_info_rq.request) _on_sw_dw_info_completed
+SW_LAUNCHER_REQUEST_INIT
+	_sw_request_init
+SW_INFO_LAUNCHER_REQUESTED
+	_sw_dw_info_requested (send http_sw_info_rq.request)
+SW_INFO_LAUNCHER_WAIT
+	_update_info_wait
+	(end of http_sw_info_rq.request) _on_sw_dw_info_completed
+SW_CORE_REQUEST_INIT
+	_sw_request_init
+SW_INFO_CORE_REQUESTED
+	_sw_dw_info_requested (send http_sw_info_rq.request)
+SW_INFO_CORE_WAIT
+	_update_info_wait
+	(end of http_sw_info_rq.request) _on_sw_dw_info_completed
+SW_CHECK_ULC
+	_sw_check_ulc
+	_reset_info_and_wait
+WAIT
+
+
+## ------------ On software updates requested
+## ------------ Laucher start entry 0 SW_UPDATES_REQUESTED
+WAIT
+	ON EVENT _sw_updates_requested
+SW_UPDATER_REQUEST_INIT
+	_software_name = "updater"
+	_sw_request_init
+SW_DW_INFO_REQUESTED
+	_sw_dw_info_requested
+SW_DW_INFO_WAIT
+	_update_info_wait()
+	(end of http_sw_info_rq.request) _on_sw_dw_info_completed
+(3) SW_DW_BRICKS
+	_sw_dw_bricks
+	if _current_brick >= _info.bricks
+		MERGE_AND_MOVE
+			_merge_and_move
+		(2) MERGE_AND_MOVE_ALL_BRICKS
+			_merge_and_move_all_bricks
+			if _current_merging_brick >= _info.bricks:
+				SW_DW_COMPLETED
+					_sw_dw_completed
+				SW_DW_RENAME
+					if 
+>>>>>>>>>>>>>>>>>>>> copiare il file scaricato se updater
+					_reset_info_and_wait
+				WAIT
+			else
+				MERGE_AND_MOVE_SINGLE_BRICK
+					_merge_and_move_single_brick
+					if FileAccess.file_exists(_brick_name) == false
+							_reset_info_and_wait (error)
+						WAIT
+					else
+						READ_AND_SAVE
+							_read_and_save
+						(1) READ_AND_SAVE_ALL_CHUNKS
+							_read_and_save_all_chunks
+							if _input_file_data_read == false:
+								READ_AND_SAVE_GROUP_OF_CHUNKS
+									_read_and_save_goup_of_chunks
+								READ_AND_SAVE_ALL_CHUNKS
+									_read_and_save_all_chunks
+									if _input_file_data_read == false:
+										READ_AND_SAVE_GROUP_OF_CHUNKS (go to 1)
+									else
+										MERGE_AND_MOVE_ALL_BRICKS (go to 2)
+							else
+								MERGE_AND_MOVE_ALL_BRICKS (go to 2)
+	else
+		SW_DW_BRICK_WAIT
+			_update_info_wait()
+			(end of http_sw_dw_rq.request) _on_sw_dw_brick_completed
+			if download error
+					_reset_info_and_wait (error)
+				WAIT
+			else
+				SW_DW_BRICKS (go to 3)
+			
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+
+
+
+
+
+
+---------------------------- OLD
+
+
+## ------------ request info about software
+00 WAIT
+_on_info_software_requested - event generator
+01 SW_INFO_REQUESTED
+			
+			_sw_dw_info_requested - request info
+02 SW_INFO_WAIT 
+			_child_update_download_info- wait and update info
+			_on_sw_dw_info_completed - end wait
+03 WAIT
+
+## ------------ request info about updater, laucher and core software
+00 WAIT
+_on_check_info_software_updates_requested - event generator
+01 STATUS_LOCAL.CHECK_INFO_SOFTWARE_UPDATES_REQUESTED:
+			_on_check_info_software_updates_requested
+02 SW_UPDATER_REQUEST_INIT
+			_sw_request_init - init informations
+03 SW_INFO_UPDATER_REQUESTED
+			_sw_dw_info_requested - request info
+04 SW_INFO_UPDATER_WAIT
+			_child_update_download_info- wait and update info
+			_on_sw_dw_info_completed - end wait
+05 SW_LAUNCHER_REQUEST_INIT
+			_sw_info_request_load - init informations
+06 SW_INFO_LAUNCHER_REQUESTED
+			_sw_dw_info_requested - request info
+07 SW_INFO_LAUNCHER_WAIT
+			_child_update_download_info- wait and update info
+			_on_sw_dw_info_completed - end wait
+08 SW_CORE_REQUEST_INIT
+			_sw_info_request_load - init informations
+09 SW_INFO_CORE_REQUESTED
+			_sw_dw_info_requested - request info
+10 SW_INFO_CORE_WAIT
+			_child_update_download_info- wait and update info
+			_on_sw_dw_info_completed - end wait
+11 SW_CHECK_ULC
+			_sw_check_ulc - save local info to files adn compare
+12 WAIT
+
+
+## ------------ request info about updater, laucher and core software
+00 WAIT
+_on_software_updates_requested - event generator
+01 STATUS_LOCAL.SW_UPDATES_REQUESTED:
+			software_updates_requested
+02 SW_UPDATER_REQUEST_INIT
+			_sw_info_request_load - init informations
+03 SW_INFO_UPDATER_REQUESTED
+			_sw_dw_info_requested - request info
+04 SW_INFO_UPDATER_WAIT
+			_child_update_download_info- wait and update info
+			_on_sw_dw_info_completed - end wait
+05 SW_LAUNCHER_REQUEST_INIT
+			_sw_info_request_load - init informations
+06 SW_INFO_LAUNCHER_REQUESTED
+			_sw_dw_info_requested - request info
+07 SW_INFO_LAUNCHER_WAIT
+			_child_update_download_info- wait and update info
+			_on_sw_dw_info_completed - end wait
+08 SW_CORE_REQUEST_INIT
+			_sw_info_request_load - init informations
+09 SW_INFO_CORE_REQUESTED
+			_sw_dw_info_requested - request info
+10 SW_INFO_CORE_WAIT
+			_child_update_download_info- wait and update info
+			_on_sw_dw_info_completed - end wait
+11 SW_CHECK_ULC
+			_sw_check_ulc - save local info to files adn compare
+12 WAIT
+
