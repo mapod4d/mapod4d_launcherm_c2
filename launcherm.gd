@@ -110,6 +110,11 @@ const DW_INFO = "download_info"
 const UPDATER_NAME = "updater"
 ## storage name for data info of software updater
 const UPDATER_INFO = "updater_info"
+## name of software launcher
+const LAUNCHER_NAME = "launcherm"
+## storage name for data info of software launcher
+const LAUNCHER_INFO = "launcherm_info"
+
 
 const MULTIVSVR = "https://sv001.mapod4d.it"
 const MULTIVSVR_PORT = 80
@@ -794,17 +799,29 @@ func _sw_request_init():
 			else:
 				_set_status(STATUS_LOCAL.SW_INFO_UPDATER_REQUESTED)
 		STATUS_LOCAL.SW_LAUNCHER_REQUEST_INIT:
-			_software_name = "launcher"
+			_software_name = LAUNCHER_NAME
 			_ext = _os_info.exe_ext
 			_sysop = _os_info.os
-			_destination = "files/launcher"
-			_set_status(STATUS_LOCAL.SW_INFO_LAUNCHER_REQUESTED)
+			#_destination = "files/launcher"
+			## used only for download
+			_destination = "%s%s.bin" % [_build_dest_dw_path, _software_name]
+			var entry_0_status = _get_entry_0_status()
+			if entry_0_status == STATUS_LOCAL.SW_UPDATES_REQUESTED:
+				_set_status(STATUS_LOCAL.SW_DW_INFO_REQUESTED)
+			else:
+				_set_status(STATUS_LOCAL.SW_INFO_LAUNCHER_REQUESTED)
 		STATUS_LOCAL.SW_CORE_REQUEST_INIT:
 			_software_name = "softwaretest"
 			_ext = ".exe"
 			_sysop = "L00"
-			_destination = "files/core"
-			_set_status(STATUS_LOCAL.SW_INFO_CORE_REQUESTED)
+			#_destination = "files/core"
+			## used only for download
+			_destination = "%s%s.bin" % [_build_dest_dw_path, _software_name]
+			var entry_0_status = _get_entry_0_status()
+			if entry_0_status == STATUS_LOCAL.SW_UPDATES_REQUESTED:
+				_set_status(STATUS_LOCAL.SW_DW_INFO_REQUESTED)
+			else:
+				_set_status(STATUS_LOCAL.SW_INFO_CORE_REQUESTED)
 
 
 ## download software requested
@@ -867,7 +884,7 @@ func _on_sw_dw_info_completed(result, _response_code, _headers, body):
 					_info_saved[UPDATER_INFO] = _info
 					_set_status(STATUS_LOCAL.SW_LAUNCHER_REQUEST_INIT)
 				elif status == STATUS_LOCAL.SW_INFO_LAUNCHER_WAIT:
-					_info_saved['launcher'] = _info
+					_info_saved[LAUNCHER_INFO] = _info
 					_set_status(STATUS_LOCAL.SW_CORE_REQUEST_INIT)
 				elif status == STATUS_LOCAL.SW_INFO_CORE_WAIT:
 					_info_saved['core'] = _info
@@ -930,7 +947,7 @@ func _sw_check_ulc():
 		if version.sversion < _info_saved[UPDATER_INFO].sversion:
 			_update_updater = true
 
-	if _m4dsversion < _info_saved["launcher"].sversion:
+	if _m4dsversion < _info_saved[LAUNCHER_INFO].sversion:
 		_update_launcher = true
 
 	_write_core_version()
@@ -969,7 +986,15 @@ func _sw_dw_rename():
 		var from_name = "%s%s.bin" % [_build_dest_dw_path, _software_name]
 		var to_name = _build_updater_path + str(_ext)
 		DirAccess.rename_absolute(from_name, to_name)
-	_reset_info_and_wait()
+		_update_updater = false
+		if _update_launcher == true:
+			_set_status(STATUS_LOCAL.SW_LAUNCHER_REQUEST_INIT)
+		#elif _update_core == true:
+		#	_set_status(STATUS_LOCAL.SW_CORE_REQUEST_INIT)
+		else:
+			_reset_info_and_wait()
+	else:
+		_reset_info_and_wait()
 
 
 
