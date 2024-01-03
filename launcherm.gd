@@ -265,6 +265,9 @@ func _ready():
 
 	software.check_info_sw_updates_requested.connect(
 			_on_check_info_sw_updates_requested)
+
+	software.sw_search_updates_requested.connect(
+			_on_sw_search_updates_requested)
 	software.sw_updates_requested.connect(
 			_on_sw_updates_requested)
 	
@@ -660,7 +663,10 @@ func _end_of_flow(error):
 					if _update_core or _update_launcher or _update_updater:
 						_child_update_msg(tr("UPDFOUND"))
 						software.enable_update_button()
+						software.disable_src_button()
 					else:
+						software.disable_update_button()
+						software.enable_src_button()
 						_child_update_msg(tr("NOUPDFOUND"))
 			else:
 				_child_update_msg(tr(error))
@@ -761,6 +767,10 @@ func _on_check_info_sw_updates_requested(which):
 	_check_info_sw_updates_requested(which)
 
 
+## event request start searchsoftware updates
+func _on_sw_search_updates_requested(which):
+	_sw_search_updates_requested(which)
+
 ## event request start software updates
 func _on_sw_updates_requested(which):
 	_sw_updates_requested(which)
@@ -775,6 +785,16 @@ func _check_info_sw_updates_requested(which):
 	_which = which
 	_child_update_msg(tr("LOOKFORUPD"))
 	_set_status(STATUS_LOCAL.SW_UPDATER_REQUEST_INIT)
+
+
+## ENTRY 0 start search software updates
+func _sw_search_updates_requested(which):
+	_reset_info_and_wait()
+	_set_entry_0_status(STATUS_LOCAL.CHECK_INFO_SW_UPDATES_REQUESTED)
+	_mapod4d_debug_status()
+	_which = which
+	_child_update_msg(tr("LOOKFORUPD"))
+	_set_status(STATUS_LOCAL.CHECK_INFO_SW_UPDATES_REQUESTED)
 
 
 ## ENTRY 0 start software updates
@@ -980,12 +1000,7 @@ func _sw_check_ulc():
 			"cv": _update_core,
 		}))
 
-	var entry_0_status = _get_entry_0_status()
-	if entry_0_status == STATUS_LOCAL.SW_UPDATES_REQUESTED:
-		if _update_updater:
-			_set_status(STATUS_LOCAL.SW_UPDATER_REQUEST_INIT)
-	else:
-		_reset_info_and_wait()
+	_reset_info_and_wait()
 
 
 ## software downloaded end, rename and move to updates area
@@ -1041,7 +1056,13 @@ func _sw_dw_rename():
 		_reset_info_and_wait()
 	else:
 		## nothing to do
+		software.disable_update_button()
+		software.enable_src_button()
 		_reset_info_and_wait()
+	
+	if (_update_launcher or _update_updater or _update_core) == false:
+		software.disable_update_button()
+		software.enable_src_button()
 
 
 
