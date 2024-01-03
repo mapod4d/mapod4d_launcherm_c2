@@ -74,13 +74,13 @@ const M4DVERSION = {
 	'p': "a",
 	'godot': {
 		'v1': 4,
-		'v2': 1,
+		'v2': 2,
 		'v3': 1,
 		'v4': 2, # dev = 0, rc = 1, stable = 2
 		'p': "stable"
 	}
 }
-const M4DNAME = "mapod4d_launcherm"
+const M4DNAME = "mapod4d"
 
 # default 0 version of M4D
 const M4D0VERSION = {
@@ -91,7 +91,7 @@ const M4D0VERSION = {
 	'p': "a",
 	'godot': {
 		'v1': 4,
-		'v2': 1,
+		'v2': 2,
 		'v3': 1,
 		'v4': 2, # dev = 0, rc = 1, stable = 2
 		'p': "stable"
@@ -99,17 +99,29 @@ const M4D0VERSION = {
 }
 
 const WK_PATH = 'wk'
-const CORE_NAME = "mapo4d"
 const UPDATES_DIR = "updates"
 const TMP_DIR = "tmp"
 
 ## storage name for data info of current download
 const DW_INFO = "download_info"
 
-## name of software updater
+## name of software updater on the update server
 const UPDATER_NAME = "updater"
+## name of software updater
+const UPDATER_EXE_NAME = "updater"
 ## storage name for data info of software updater
 const UPDATER_INFO = "updater_info"
+## name of software launcher on the update server
+const LAUNCHER_NAME = "launcherm"
+## name of software launcher
+const LAUNCHER_EXE_NAME = "mapod4d"
+## storage name for data info of software launcher
+const LAUNCHER_INFO = "launcherm_info"
+## name of software core on the update server
+const CORE_NAME = "core"
+## name of software core
+const CORE_EXE_NAME = "core"
+
 
 const MULTIVSVR = "https://sv001.mapod4d.it"
 const MULTIVSVR_PORT = 80
@@ -142,6 +154,7 @@ var _entry_0_status = STATUS_LOCAL.WAIT
 
 ## dinamic paths 
 var _build_updater_path = null
+var _build_launcher_path = null
 var _build_core_path = null
 var _build_wk_path = null
 var _build_updates_path = null
@@ -373,8 +386,9 @@ func _write_version():
 ## build dinamic paths
 func _build_paths():
 	_build_wk_path = "%s/%s" % [_base_path, WK_PATH] 
-	_build_updater_path = "%s/%s" % [_build_wk_path , UPDATER_NAME]
-	_build_core_path = "%s/%s" % [_build_wk_path , CORE_NAME]
+	_build_updater_path = "%s/%s" % [_build_wk_path , UPDATER_EXE_NAME]
+	_build_launcher_path = "%s/%s" % [_base_path , LAUNCHER_EXE_NAME]
+	_build_core_path = "%s/%s" % [_build_wk_path , CORE_EXE_NAME]
 	_build_updates_path = "%s/%s" % [_build_wk_path , UPDATES_DIR]
 	_build_tmp_dir = "%s/%s" % [_build_wk_path , TMP_DIR]
 	_build_dest_dw_path = "%s/dw_" % [_build_updates_path]
@@ -770,7 +784,15 @@ func _sw_updates_requested(which):
 	_mapod4d_debug_status()
 	_which = which
 	_child_update_msg(tr("LOOKFORUPD"))
-	_set_status(STATUS_LOCAL.SW_UPDATER_REQUEST_INIT)
+	if _update_updater == true:
+		_set_status(STATUS_LOCAL.SW_UPDATER_REQUEST_INIT)
+	elif _update_launcher == true:
+		_set_status(STATUS_LOCAL.SW_LAUNCHER_REQUEST_INIT)
+	elif _update_core == true:
+		_set_status(STATUS_LOCAL.SW_CORE_REQUEST_INIT)
+	else:
+		## no updates found
+		pass
 
 
 ## init software requested
@@ -794,17 +816,29 @@ func _sw_request_init():
 			else:
 				_set_status(STATUS_LOCAL.SW_INFO_UPDATER_REQUESTED)
 		STATUS_LOCAL.SW_LAUNCHER_REQUEST_INIT:
-			_software_name = "launcher"
+			_software_name = LAUNCHER_NAME
 			_ext = _os_info.exe_ext
 			_sysop = _os_info.os
-			_destination = "files/launcher"
-			_set_status(STATUS_LOCAL.SW_INFO_LAUNCHER_REQUESTED)
+			#_destination = "files/launcher"
+			## used only for download
+			_destination = "%s%s.bin" % [_build_dest_dw_path, _software_name]
+			var entry_0_status = _get_entry_0_status()
+			if entry_0_status == STATUS_LOCAL.SW_UPDATES_REQUESTED:
+				_set_status(STATUS_LOCAL.SW_DW_INFO_REQUESTED)
+			else:
+				_set_status(STATUS_LOCAL.SW_INFO_LAUNCHER_REQUESTED)
 		STATUS_LOCAL.SW_CORE_REQUEST_INIT:
-			_software_name = "softwaretest"
+			_software_name = CORE_NAME
 			_ext = ".exe"
 			_sysop = "L00"
-			_destination = "files/core"
-			_set_status(STATUS_LOCAL.SW_INFO_CORE_REQUESTED)
+			#_destination = "files/core"
+			## used only for download
+			_destination = "%s%s.bin" % [_build_dest_dw_path, _software_name]
+			var entry_0_status = _get_entry_0_status()
+			if entry_0_status == STATUS_LOCAL.SW_UPDATES_REQUESTED:
+				_set_status(STATUS_LOCAL.SW_DW_INFO_REQUESTED)
+			else:
+				_set_status(STATUS_LOCAL.SW_INFO_CORE_REQUESTED)
 
 
 ## download software requested
@@ -867,7 +901,7 @@ func _on_sw_dw_info_completed(result, _response_code, _headers, body):
 					_info_saved[UPDATER_INFO] = _info
 					_set_status(STATUS_LOCAL.SW_LAUNCHER_REQUEST_INIT)
 				elif status == STATUS_LOCAL.SW_INFO_LAUNCHER_WAIT:
-					_info_saved['launcher'] = _info
+					_info_saved[LAUNCHER_INFO] = _info
 					_set_status(STATUS_LOCAL.SW_CORE_REQUEST_INIT)
 				elif status == STATUS_LOCAL.SW_INFO_CORE_WAIT:
 					_info_saved['core'] = _info
@@ -930,7 +964,7 @@ func _sw_check_ulc():
 		if version.sversion < _info_saved[UPDATER_INFO].sversion:
 			_update_updater = true
 
-	if _m4dsversion < _info_saved["launcher"].sversion:
+	if _m4dsversion < _info_saved[LAUNCHER_INFO].sversion:
 		_update_launcher = true
 
 	_write_core_version()
@@ -965,11 +999,49 @@ func _sw_dw_completed():
 ## merge and move current software downloaded to correct position
 func _sw_dw_rename():
 	# TODO write rename procedures
+	var from_name = "%s%s.bin" % [_build_dest_dw_path, _software_name]
 	if _software_name == UPDATER_NAME:
-		var from_name = "%s%s.bin" % [_build_dest_dw_path, _software_name]
+		## only rename
 		var to_name = _build_updater_path + str(_ext)
 		DirAccess.rename_absolute(from_name, to_name)
-	_reset_info_and_wait()
+		_update_updater = false
+		if _update_launcher == true:
+			_set_status(STATUS_LOCAL.SW_LAUNCHER_REQUEST_INIT)
+		elif _update_core == true:
+			_set_status(STATUS_LOCAL.SW_CORE_REQUEST_INIT)
+		else:
+			_reset_info_and_wait()
+	elif _software_name == LAUNCHER_NAME:
+		## run updater
+		if OS.has_feature('editor'):
+			if _update_core == true:
+				_set_status(STATUS_LOCAL.SW_CORE_REQUEST_INIT)
+			else:
+				_reset_info_and_wait()
+		else:
+			if _dir.file_exists(from_name):
+				var updater_exe = _build_updater_path + str(_ext)
+				if _dir.file_exists(updater_exe):
+					## run updater
+					OS.create_process(updater_exe,  ["++", "-m4dupdate"])
+					## quit form the launcher
+					get_tree().quit()
+				else:
+					## error updater exe not found
+					_reset_info_and_wait()
+			else:
+				## error downloaded luncher not found
+				_reset_info_and_wait()
+		_update_launcher = false
+	elif _software_name == CORE_NAME:
+		## only rename
+		var to_name = _build_updater_path + str(_ext)
+		DirAccess.rename_absolute(from_name, to_name)
+		_update_core = false
+		_reset_info_and_wait()
+	else:
+		## nothing to do
+		_reset_info_and_wait()
 
 
 
