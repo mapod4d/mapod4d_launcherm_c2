@@ -67,7 +67,7 @@ enum OP_TYPE_LOCAL {
 
 # ----- constants
 const M4DVERSION = {
-	'v1': 0, 
+	'v1': 2, 
 	'v2': 0,
 	'v3': 0,
 	'v4': 1,
@@ -829,8 +829,8 @@ func _sw_request_init():
 				_set_status(STATUS_LOCAL.SW_INFO_LAUNCHER_REQUESTED)
 		STATUS_LOCAL.SW_CORE_REQUEST_INIT:
 			_software_name = CORE_NAME
-			_ext = ".exe"
-			_sysop = "L00"
+			_ext = _os_info.exe_ext
+			_sysop = _os_info.os
 			#_destination = "files/core"
 			## used only for download
 			_destination = "%s%s.bin" % [_build_dest_dw_path, _software_name]
