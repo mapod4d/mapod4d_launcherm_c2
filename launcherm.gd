@@ -214,8 +214,9 @@ var _mapod4d_ver = null
 @onready var http_sw_dw_rq = $HTTPSWRequestDownload
 @onready var http_mt_info_rq = $HTTPSWRequestInfo
 @onready var http_mt_dw_rq = $HTTPSWRequestDownload
+@onready var tab_container = $TabContainer
 @onready var software = $TabContainer/Software
-@onready var metaverse = $TabContainer/Metaverse
+@onready var multiverse = $TabContainer/Multiverse
 
 
 # ----- optional built-in virtual _init method
@@ -249,11 +250,15 @@ func _ready():
 		"Web":
 			_os_info.os = "H00"
 			_os_info.exe_ext = ""
+	
 
 	## get base path
 	_base_path = OS.get_executable_path().get_base_dir()
 	if OS.has_feature('editor'):
 		_base_path = EDITOR_DBG_BASE_PATH
+		#tab_container.set_tab_disabled(1, true)
+	else:
+		tab_container.set_tab_disabled(1, true)
 	_build_paths()
 	_build_dirs()
 	_write_version()
@@ -276,7 +281,7 @@ func _ready():
 	software.info_software_requested.connect(
 			_on_info_software_requested)
 
-	metaverse.download_metaverse_requested.connect(
+	multiverse.download_metaverse_requested.connect(
 			_on_download_metaverse_requested)
 
 	# current status

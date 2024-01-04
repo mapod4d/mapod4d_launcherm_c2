@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3 uid="uid://cqj5peget8xrm"]
+[gd_scene load_steps=14 format=3 uid="uid://cqj5peget8xrm"]
 
 [ext_resource type="Script" path="res://launcherm.gd" id="1_h8705"]
 [ext_resource type="Script" path="res://software.gd" id="2_820pk"]
@@ -17,6 +17,14 @@ corner_radius_top_left = 10
 corner_radius_top_right = 10
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_xavjq"]
+bg_color = Color(0.470588, 0.470588, 0.470588, 1)
+border_width_left = 4
+border_width_right = 4
+border_color = Color(0.470588, 0.470588, 0.470588, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_1yx71"]
 bg_color = Color(0.470588, 0.470588, 0.470588, 1)
 border_width_left = 4
 border_width_right = 4
@@ -49,8 +57,12 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_colors/font_selected_color = Color(0.952941, 0.952941, 0.952941, 1)
+theme_override_colors/font_unselected_color = Color(0.898039, 0.898039, 0.898039, 1)
+theme_override_colors/font_disabled_color = Color(0.729412, 0.729412, 0.729412, 0.392157)
 theme_override_styles/tab_selected = SubResource("StyleBoxFlat_83g86")
 theme_override_styles/tab_unselected = SubResource("StyleBoxFlat_xavjq")
+theme_override_styles/tab_disabled = SubResource("StyleBoxFlat_1yx71")
 
 [node name="Software" type="Panel" parent="TabContainer"]
 layout_mode = 2
@@ -129,13 +141,13 @@ theme_override_styles/normal = ExtResource("3_8airf")
 disabled = true
 text = "Download"
 
-[node name="Metaverse" type="Panel" parent="TabContainer"]
+[node name="Multiverse" type="Panel" parent="TabContainer"]
 visible = false
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_spad7")
 script = ExtResource("5_p7o53")
 
-[node name="Download" type="Button" parent="TabContainer/Metaverse"]
+[node name="Download" type="Button" parent="TabContainer/Multiverse"]
 layout_mode = 0
 offset_left = 71.0
 offset_top = 54.0
@@ -143,7 +155,7 @@ offset_right = 158.0
 offset_bottom = 85.0
 text = "Download"
 
-[node name="CheckInfo" type="Button" parent="TabContainer/Metaverse"]
+[node name="CheckInfo" type="Button" parent="TabContainer/Multiverse"]
 layout_mode = 0
 offset_left = 178.0
 offset_top = 53.0
@@ -151,7 +163,7 @@ offset_right = 268.0
 offset_bottom = 84.0
 text = "Check Info"
 
-[node name="Info" type="Label" parent="TabContainer/Metaverse"]
+[node name="Info" type="Label" parent="TabContainer/Multiverse"]
 layout_mode = 0
 offset_left = 74.0
 offset_top = 106.0
@@ -161,7 +173,7 @@ theme_override_colors/font_color = Color(0.909804, 0.909804, 0.909804, 1)
 theme_override_colors/font_shadow_color = Color(0.180392, 0.180392, 0.180392, 1)
 theme_override_styles/normal = SubResource("StyleBoxFlat_apn5j")
 
-[node name="Info1" type="RichTextLabel" parent="TabContainer/Metaverse"]
+[node name="Info1" type="RichTextLabel" parent="TabContainer/Multiverse"]
 layout_mode = 0
 offset_left = 80.0
 offset_top = 147.0
@@ -177,4 +189,4 @@ accept_gzip = false
 
 [node name="HTTPMTRequestDownload" type="HTTPRequest" parent="."]
 
-[connection signal="pressed" from="TabContainer/Metaverse/Download" to="TabContainer/Metaverse" method="_on_download_pressed"]
+[connection signal="pressed" from="TabContainer/Multiverse/Download" to="TabContainer/Multiverse" method="_on_download_pressed"]
