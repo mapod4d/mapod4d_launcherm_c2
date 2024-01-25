@@ -20,6 +20,7 @@ extends Control
 enum STATUS_LOCAL {
 	WAIT = 0,
 	
+	START_REQUESTED,
 	CHECK_INFO_SW_UPDATES_REQUESTED,
 	SW_UPDATES_REQUESTED,
 
@@ -67,20 +68,20 @@ enum OP_TYPE_LOCAL {
 
 # ----- constants
 const M4DVERSION = {
-	'v1': 0, 
+	'v1': 2, 
 	'v2': 0,
 	'v3': 0,
 	'v4': 1,
 	'p': "a",
 	'godot': {
 		'v1': 4,
-		'v2': 1,
+		'v2': 2,
 		'v3': 1,
 		'v4': 2, # dev = 0, rc = 1, stable = 2
 		'p': "stable"
 	}
 }
-const M4DNAME = "mapod4d_launcherm"
+const M4DNAME = "mapod4d"
 
 # default 0 version of M4D
 const M4D0VERSION = {
@@ -91,7 +92,7 @@ const M4D0VERSION = {
 	'p': "a",
 	'godot': {
 		'v1': 4,
-		'v2': 1,
+		'v2': 2,
 		'v3': 1,
 		'v4': 2, # dev = 0, rc = 1, stable = 2
 		'p': "stable"
@@ -99,17 +100,29 @@ const M4D0VERSION = {
 }
 
 const WK_PATH = 'wk'
-const CORE_NAME = "mapo4d"
 const UPDATES_DIR = "updates"
 const TMP_DIR = "tmp"
 
 ## storage name for data info of current download
 const DW_INFO = "download_info"
 
-## name of software updater
+## name of software updater on the update server
 const UPDATER_NAME = "updater"
+## name of software updater
+const UPDATER_EXE_NAME = "updater"
 ## storage name for data info of software updater
 const UPDATER_INFO = "updater_info"
+## name of software launcher on the update server
+const LAUNCHER_NAME = "launcherm"
+## name of software launcher
+const LAUNCHER_EXE_NAME = "mapod4d"
+## storage name for data info of software launcher
+const LAUNCHER_INFO = "launcherm_info"
+## name of software core on the update server
+const CORE_NAME = "core"
+## name of software core
+const CORE_EXE_NAME = "core"
+
 
 const MULTIVSVR = "https://sv001.mapod4d.it"
 const MULTIVSVR_PORT = 80
@@ -134,6 +147,14 @@ var _mapod4d_debug_status_flag: bool = true
 ## this application codified version
 var _m4dsversion = null
 
+## internal configuration
+var _settings = {
+	"insicure": false,
+	"autoupdate": false,
+}
+
+var _tls_opt = TLSOptions.client_unsafe()
+
 # status machine
 # current status
 var _status = STATUS_LOCAL.WAIT
@@ -142,6 +163,7 @@ var _entry_0_status = STATUS_LOCAL.WAIT
 
 ## dinamic paths 
 var _build_updater_path = null
+var _build_launcher_path = null
 var _build_core_path = null
 var _build_wk_path = null
 var _build_updates_path = null
@@ -201,8 +223,9 @@ var _mapod4d_ver = null
 @onready var http_sw_dw_rq = $HTTPSWRequestDownload
 @onready var http_mt_info_rq = $HTTPSWRequestInfo
 @onready var http_mt_dw_rq = $HTTPSWRequestDownload
+@onready var tab_container = $TabContainer
 @onready var software = $TabContainer/Software
-@onready var metaverse = $TabContainer/Metaverse
+@onready var multiverse = $TabContainer/Multiverse
 
 
 # ----- optional built-in virtual _init method
@@ -236,14 +259,24 @@ func _ready():
 		"Web":
 			_os_info.os = "H00"
 			_os_info.exe_ext = ""
+	
 
 	## get base path
 	_base_path = OS.get_executable_path().get_base_dir()
 	if OS.has_feature('editor'):
 		_base_path = EDITOR_DBG_BASE_PATH
+		#tab_container.set_tab_disabled(1, true)
+	else:
+		tab_container.set_tab_disabled(1, true)
+		
+	tab_container.set_tab_title(0, tr("TABSOFTWARE"))
+	tab_container.set_tab_title(1, tr("TABMULTIVERSE"))
+	tab_container.set_tab_title(2, tr("TABSETTINGS"))
+
 	_build_paths()
 	_build_dirs()
 	_write_version()
+	_load_setting()
 
 	http_sw_info_rq.request_completed.connect(
 			_on_sw_dw_info_completed)
@@ -252,6 +285,9 @@ func _ready():
 
 	software.check_info_sw_updates_requested.connect(
 			_on_check_info_sw_updates_requested)
+
+	software.sw_search_updates_requested.connect(
+			_on_sw_search_updates_requested)
 	software.sw_updates_requested.connect(
 			_on_sw_updates_requested)
 	
@@ -260,16 +296,24 @@ func _ready():
 	software.info_software_requested.connect(
 			_on_info_software_requested)
 
-	metaverse.download_metaverse_requested.connect(
+	multiverse.download_metaverse_requested.connect(
 			_on_download_metaverse_requested)
 
-	# current status
-	_set_status(STATUS_LOCAL.CHECK_INFO_SW_UPDATES_REQUESTED)
-	# starting flow status
-	_set_entry_0_status(STATUS_LOCAL.CHECK_INFO_SW_UPDATES_REQUESTED)
+	if _settings.autoupdate == true:
+		# current status
+		_set_status(STATUS_LOCAL.CHECK_INFO_SW_UPDATES_REQUESTED)
+		# starting flow status
+		_set_entry_0_status(STATUS_LOCAL.CHECK_INFO_SW_UPDATES_REQUESTED)
+	else:
+		# current status
+		_set_status(STATUS_LOCAL.START_REQUESTED)
+		# starting flow status
+		_set_entry_0_status(STATUS_LOCAL.START_REQUESTED)
+	
 #	DEBUG
 #	_set_status(STATUS_LOCAL.WAIT)
 #	_set_entry_0_status(STATUS_LOCAL.WAIT)
+
 	_is_ready = true
 
 
@@ -289,6 +333,9 @@ func _process(_delta):
 	if _is_ready and _local_lock != true:
 		if _status != STATUS_LOCAL.WAIT:
 			match _status:
+				STATUS_LOCAL.START_REQUESTED:
+					_start_requested()
+
 				STATUS_LOCAL.CHECK_INFO_SW_UPDATES_REQUESTED:
 					_check_info_sw_updates_requested(software)
 				
@@ -358,6 +405,7 @@ func _process(_delta):
 # ----- public methods
 
 # ----- private methods
+
 ## write version file
 func _write_version():
 		var json_data = JSON.stringify(M4DVERSION)
@@ -370,11 +418,60 @@ func _write_version():
 			file.store_string(json_data)
 			file.flush()
 
+
+## load and update settings
+func _load_setting():
+	var base_dir = OS.get_executable_path().get_base_dir()
+	if OS.has_feature('editor'):
+			base_dir = EDITOR_DBG_BASE_PATH
+	var file_name = base_dir + "/" + M4DNAME + "_conf.json"
+	if FileAccess.file_exists(file_name):
+		## TODO load settings
+		var file = FileAccess.open(file_name, FileAccess.READ)
+		if file != null:
+			var settings = file.get_as_text()
+			settings = JSON.parse_string(settings)
+			if settings != null:
+				_set_settings(settings)
+			file.close()
+	else:
+		## create default settings
+		var settings = JSON.stringify(_settings)
+		var file = FileAccess.open(file_name, FileAccess.WRITE)
+		if file != null:
+			file.store_string(settings)
+			file.flush()
+			file.close()
+
+	if _settings.insicure:
+		http_sw_info_rq.set_tls_options(_tls_opt)
+		http_sw_dw_rq.set_tls_options(_tls_opt)
+		http_mt_info_rq.set_tls_options(_tls_opt)
+		http_mt_dw_rq.set_tls_options(_tls_opt)
+		## create default settings
+
+	## update settings
+	var settings = JSON.stringify(_settings)
+	var file = FileAccess.open(file_name, FileAccess.WRITE)
+	if file != null:
+		file.store_string(settings)
+		file.flush()
+		file.close()
+
+
+## check and config internal settings
+func _set_settings(settings):
+	if "insicure" in settings:
+		if typeof(_settings.insicure) == TYPE_BOOL:
+			_settings.insicure = bool(settings.insicure)
+
+
 ## build dinamic paths
 func _build_paths():
 	_build_wk_path = "%s/%s" % [_base_path, WK_PATH] 
-	_build_updater_path = "%s/%s" % [_build_wk_path , UPDATER_NAME]
-	_build_core_path = "%s/%s" % [_build_wk_path , CORE_NAME]
+	_build_updater_path = "%s/%s" % [_build_wk_path , UPDATER_EXE_NAME]
+	_build_launcher_path = "%s/%s" % [_base_path , LAUNCHER_EXE_NAME]
+	_build_core_path = "%s/%s" % [_build_wk_path , CORE_EXE_NAME]
 	_build_updates_path = "%s/%s" % [_build_wk_path , UPDATES_DIR]
 	_build_tmp_dir = "%s/%s" % [_build_wk_path , TMP_DIR]
 	_build_dest_dw_path = "%s/dw_" % [_build_updates_path]
@@ -385,7 +482,7 @@ func _build_paths():
 func _make_dir(path):
 	if _base_dir != null:
 		if _base_dir.dir_exists(path) == false:
-			var error = _base_dir.make_dir(path)
+			# var error = _base_dir.make_dir(path)
 			pass
 
 
@@ -467,19 +564,17 @@ func _write_core_version():
 ## prevent multiple instance
 func _block_istance():
 	## create server and prevent multiple instance
-	_server = TCPServer.new()
-	var error = _server.listen(BLOCK_ISTANCE_PORT, "127.0.0.1")
-	if error != OK:
-		get_tree().quit()
-#	## test on linux
-#	var dor = DirAccess.open('.')
-#	if dor.file_exists('poppo.lck'):
-#		if dor.remove('poppo.lck') == OK:
-#			FileAccess.open('aaa', FileAccess.WRITE)
-#		else:
-#			FileAccess.open('bbb', FileAccess.WRITE)
-#			get_tree().quit()
-#	poppo = FileAccess.open('poppo.lck', FileAccess.WRITE)
+	#_server = TCPServer.new()
+	#var error = _server.listen(BLOCK_ISTANCE_PORT, "127.0.0.1")
+	#if error != OK:
+		#get_tree().quit()
+	#var output = []
+	#OS.execute("tasklist", [], output )
+	#for line in output[0].split("\n"):
+		#if line.begins_with("chrome"):
+			#get_tree().quit()
+	#https://github.com/godotengine/godot/issues/18150
+	pass
 
 
 ## utility status to string
@@ -489,6 +584,8 @@ func _status_to_str():
 	match status:
 		STATUS_LOCAL.WAIT:
 			ret_val = "WAIT"
+		STATUS_LOCAL.START_REQUESTED:
+			ret_val = "START_REQUESTED"
 		STATUS_LOCAL.CHECK_INFO_SW_UPDATES_REQUESTED:
 			ret_val = "CHECK_INFO_SW_UPDATES_REQUESTED"
 		STATUS_LOCAL.SW_UPDATES_REQUESTED:
@@ -646,7 +743,10 @@ func _end_of_flow(error):
 					if _update_core or _update_launcher or _update_updater:
 						_child_update_msg(tr("UPDFOUND"))
 						software.enable_update_button()
+						software.disable_src_button()
 					else:
+						software.disable_update_button()
+						software.enable_src_button()
 						_child_update_msg(tr("NOUPDFOUND"))
 			else:
 				_child_update_msg(tr(error))
@@ -722,8 +822,6 @@ func _on_info_software_requested(
 	_set_status(STATUS_LOCAL.SW_INFO_REQUESTED)
 
 
-
-
 ## ENTRY 0 start software download
 func _on_software_dw_info_requested(
 		software_name, ext, sysop, tmp_dir, destination, which):
@@ -747,9 +845,24 @@ func _on_check_info_sw_updates_requested(which):
 	_check_info_sw_updates_requested(which)
 
 
+## event request start searchsoftware updates
+func _on_sw_search_updates_requested(which):
+	_sw_search_updates_requested(which)
+
 ## event request start software updates
 func _on_sw_updates_requested(which):
 	_sw_updates_requested(which)
+
+## ENTRY 0 base start (no actions)
+func _start_requested():
+	_reset_info_and_wait()
+	software.enable_src_button()
+	# starting status
+	#_set_entry_0_status(STATUS_LOCAL.CHECK_INFO_SW_UPDATES_REQUESTED)
+	#_mapod4d_debug_status()
+	#_which = which
+	#_child_update_msg(tr("LOOKFORUPD"))
+	#_set_status(STATUS_LOCAL.SW_UPDATER_REQUEST_INIT)
 
 
 ## ENTRY 0 start software check updates
@@ -763,6 +876,17 @@ func _check_info_sw_updates_requested(which):
 	_set_status(STATUS_LOCAL.SW_UPDATER_REQUEST_INIT)
 
 
+
+## ENTRY 0 start search software updates
+func _sw_search_updates_requested(which):
+	_reset_info_and_wait()
+	_set_entry_0_status(STATUS_LOCAL.CHECK_INFO_SW_UPDATES_REQUESTED)
+	_mapod4d_debug_status()
+	_which = which
+	_child_update_msg(tr("LOOKFORUPD"))
+	_set_status(STATUS_LOCAL.CHECK_INFO_SW_UPDATES_REQUESTED)
+
+
 ## ENTRY 0 start software updates
 func _sw_updates_requested(which):
 	_reset_info_and_wait()
@@ -770,7 +894,15 @@ func _sw_updates_requested(which):
 	_mapod4d_debug_status()
 	_which = which
 	_child_update_msg(tr("LOOKFORUPD"))
-	_set_status(STATUS_LOCAL.SW_UPDATER_REQUEST_INIT)
+	if _update_updater == true:
+		_set_status(STATUS_LOCAL.SW_UPDATER_REQUEST_INIT)
+	elif _update_launcher == true:
+		_set_status(STATUS_LOCAL.SW_LAUNCHER_REQUEST_INIT)
+	elif _update_core == true:
+		_set_status(STATUS_LOCAL.SW_CORE_REQUEST_INIT)
+	else:
+		## no updates found
+		pass
 
 
 ## init software requested
@@ -794,17 +926,29 @@ func _sw_request_init():
 			else:
 				_set_status(STATUS_LOCAL.SW_INFO_UPDATER_REQUESTED)
 		STATUS_LOCAL.SW_LAUNCHER_REQUEST_INIT:
-			_software_name = "launcher"
+			_software_name = LAUNCHER_NAME
 			_ext = _os_info.exe_ext
 			_sysop = _os_info.os
-			_destination = "files/launcher"
-			_set_status(STATUS_LOCAL.SW_INFO_LAUNCHER_REQUESTED)
+			#_destination = "files/launcher"
+			## used only for download
+			_destination = "%s%s.bin" % [_build_dest_dw_path, _software_name]
+			var entry_0_status = _get_entry_0_status()
+			if entry_0_status == STATUS_LOCAL.SW_UPDATES_REQUESTED:
+				_set_status(STATUS_LOCAL.SW_DW_INFO_REQUESTED)
+			else:
+				_set_status(STATUS_LOCAL.SW_INFO_LAUNCHER_REQUESTED)
 		STATUS_LOCAL.SW_CORE_REQUEST_INIT:
-			_software_name = "softwaretest"
-			_ext = ".exe"
-			_sysop = "L00"
-			_destination = "files/core"
-			_set_status(STATUS_LOCAL.SW_INFO_CORE_REQUESTED)
+			_software_name = CORE_NAME
+			_ext = _os_info.exe_ext
+			_sysop = _os_info.os
+			#_destination = "files/core"
+			## used only for download
+			_destination = "%s%s.bin" % [_build_dest_dw_path, _software_name]
+			var entry_0_status = _get_entry_0_status()
+			if entry_0_status == STATUS_LOCAL.SW_UPDATES_REQUESTED:
+				_set_status(STATUS_LOCAL.SW_DW_INFO_REQUESTED)
+			else:
+				_set_status(STATUS_LOCAL.SW_INFO_CORE_REQUESTED)
 
 
 ## download software requested
@@ -867,7 +1011,7 @@ func _on_sw_dw_info_completed(result, _response_code, _headers, body):
 					_info_saved[UPDATER_INFO] = _info
 					_set_status(STATUS_LOCAL.SW_LAUNCHER_REQUEST_INIT)
 				elif status == STATUS_LOCAL.SW_INFO_LAUNCHER_WAIT:
-					_info_saved['launcher'] = _info
+					_info_saved[LAUNCHER_INFO] = _info
 					_set_status(STATUS_LOCAL.SW_CORE_REQUEST_INIT)
 				elif status == STATUS_LOCAL.SW_INFO_CORE_WAIT:
 					_info_saved['core'] = _info
@@ -930,7 +1074,7 @@ func _sw_check_ulc():
 		if version.sversion < _info_saved[UPDATER_INFO].sversion:
 			_update_updater = true
 
-	if _m4dsversion < _info_saved["launcher"].sversion:
+	if _m4dsversion < _info_saved[LAUNCHER_INFO].sversion:
 		_update_launcher = true
 
 	_write_core_version()
@@ -946,12 +1090,7 @@ func _sw_check_ulc():
 			"cv": _update_core,
 		}))
 
-	var entry_0_status = _get_entry_0_status()
-	if entry_0_status == STATUS_LOCAL.SW_UPDATES_REQUESTED:
-		if _update_updater:
-			_set_status(STATUS_LOCAL.SW_UPDATER_REQUEST_INIT)
-	else:
-		_reset_info_and_wait()
+	_reset_info_and_wait()
 
 
 ## software downloaded end, rename and move to updates area
@@ -965,11 +1104,55 @@ func _sw_dw_completed():
 ## merge and move current software downloaded to correct position
 func _sw_dw_rename():
 	# TODO write rename procedures
+	var from_name = "%s%s.bin" % [_build_dest_dw_path, _software_name]
 	if _software_name == UPDATER_NAME:
-		var from_name = "%s%s.bin" % [_build_dest_dw_path, _software_name]
+		## only rename
 		var to_name = _build_updater_path + str(_ext)
 		DirAccess.rename_absolute(from_name, to_name)
-	_reset_info_and_wait()
+		_update_updater = false
+		if _update_launcher == true:
+			_set_status(STATUS_LOCAL.SW_LAUNCHER_REQUEST_INIT)
+		elif _update_core == true:
+			_set_status(STATUS_LOCAL.SW_CORE_REQUEST_INIT)
+		else:
+			_reset_info_and_wait()
+	elif _software_name == LAUNCHER_NAME:
+		## run updater
+		if OS.has_feature('editor'):
+			if _update_core == true:
+				_set_status(STATUS_LOCAL.SW_CORE_REQUEST_INIT)
+			else:
+				_reset_info_and_wait()
+		else:
+			if _dir.file_exists(from_name):
+				var updater_exe = _build_updater_path + str(_ext)
+				if _dir.file_exists(updater_exe):
+					## run updater
+					OS.create_process(updater_exe,  ["++", "-m4dupdate"])
+					## quit form the launcher
+					get_tree().quit()
+				else:
+					## error updater exe not found
+					_reset_info_and_wait()
+			else:
+				## error downloaded luncher not found
+				_reset_info_and_wait()
+		_update_launcher = false
+	elif _software_name == CORE_NAME:
+		## only rename
+		var to_name = _build_updater_path + str(_ext)
+		DirAccess.rename_absolute(from_name, to_name)
+		_update_core = false
+		_reset_info_and_wait()
+	else:
+		## nothing to do
+		software.disable_update_button()
+		software.enable_src_button()
+		_reset_info_and_wait()
+	
+	if (_update_launcher or _update_updater or _update_core) == false:
+		software.disable_update_button()
+		software.enable_src_button()
 
 
 

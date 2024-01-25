@@ -20,8 +20,12 @@ signal info_software_requested(
 		software_name, ext, sysop, tmp_dir, destination, which)
 ## base check for sotware updates
 signal check_info_sw_updates_requested(which)
-## sotware updates
+
+## software updates
 signal sw_updates_requested(which)
+## search software updates
+signal sw_search_updates_requested(which)
+
 
 # ----- enums
 
@@ -37,6 +41,7 @@ var c = 0
 # ----- onready variables
 @onready var info = %SoftwareInfo
 @onready var update_button = %UpdateSoftware
+@onready var src_updates = %SearchSoftwareUpdates
 
 # ----- optional built-in virtual _init method
 
@@ -45,6 +50,7 @@ var c = 0
 # Called when the node enters the scene tree for the first time.
 func _ready():
 	update_button.pressed.connect(_on_update_software_pressed)
+	src_updates.pressed.connect(_on_search_software_updates_pressed)
 
 # ----- remaining built-in virtual methods
 
@@ -71,15 +77,43 @@ func update_msg(msg_data):
 
 func enable_update_button():
 	update_button.disabled = false
+	update_button.focus_mode = FOCUS_ALL
+
+
+func disable_update_button():
+	update_button.disabled = true
+	update_button.focus_mode = FOCUS_NONE
+
+
+func enable_src_button():
+	src_updates.disabled = false
+	src_updates.focus_mode = FOCUS_ALL
+
+
+func disable_src_button():
+	src_updates.disabled = true
+	src_updates.focus_mode = FOCUS_NONE
 
 # ----- private methods
 
 func _on_update_software_pressed():
 	info.text = ""
+	disable_update_button()
+	disable_src_button()
 	emit_signal(
 			"sw_updates_requested",
 			self
 	)
+
+func _on_search_software_updates_pressed():
+	info.text = ""
+	disable_update_button()
+	disable_src_button()
+	emit_signal(
+			"sw_search_updates_requested",
+			self
+	)
+
 
 
 func _on_download_pressed():
