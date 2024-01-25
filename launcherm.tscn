@@ -117,6 +117,7 @@ theme_override_constants/separation = 15
 [node name="UpdateSoftware" type="Button" parent="TabContainer/Software/MarginContainer/VBoxContainer/MarginContainerButtons/VBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2
+focus_mode = 0
 theme_override_styles/normal = ExtResource("3_8airf")
 theme_override_styles/hover = ExtResource("5_j7kw1")
 theme_override_styles/disabled = ExtResource("4_klrmy")
@@ -180,10 +181,13 @@ offset_top = 147.0
 offset_right = 1015.0
 offset_bottom = 208.0
 
+[node name="Settings" type="Panel" parent="TabContainer"]
+visible = false
+layout_mode = 2
+
 [node name="HTTPSWRequestInfo" type="HTTPRequest" parent="."]
 
 [node name="HTTPSWRequestDownload" type="HTTPRequest" parent="."]
-accept_gzip = false
 
 [node name="HTTPMTRequestInfo" type="HTTPRequest" parent="."]
 

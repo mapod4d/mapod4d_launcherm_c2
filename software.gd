@@ -77,18 +77,22 @@ func update_msg(msg_data):
 
 func enable_update_button():
 	update_button.disabled = false
+	update_button.focus_mode = FOCUS_ALL
 
 
 func disable_update_button():
 	update_button.disabled = true
+	update_button.focus_mode = FOCUS_NONE
 
 
 func enable_src_button():
 	src_updates.disabled = false
+	src_updates.focus_mode = FOCUS_ALL
 
 
 func disable_src_button():
 	src_updates.disabled = true
+	src_updates.focus_mode = FOCUS_NONE
 
 # ----- private methods
 

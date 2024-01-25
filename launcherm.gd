@@ -20,6 +20,7 @@ extends Control
 enum STATUS_LOCAL {
 	WAIT = 0,
 	
+	START_REQUESTED,
 	CHECK_INFO_SW_UPDATES_REQUESTED,
 	SW_UPDATES_REQUESTED,
 
@@ -146,6 +147,14 @@ var _mapod4d_debug_status_flag: bool = true
 ## this application codified version
 var _m4dsversion = null
 
+## internal configuration
+var _settings = {
+	"insicure": false,
+	"autoupdate": false,
+}
+
+var _tls_opt = TLSOptions.client_unsafe()
+
 # status machine
 # current status
 var _status = STATUS_LOCAL.WAIT
@@ -259,9 +268,15 @@ func _ready():
 		#tab_container.set_tab_disabled(1, true)
 	else:
 		tab_container.set_tab_disabled(1, true)
+		
+	tab_container.set_tab_title(0, tr("TABSOFTWARE"))
+	tab_container.set_tab_title(1, tr("TABMULTIVERSE"))
+	tab_container.set_tab_title(2, tr("TABSETTINGS"))
+
 	_build_paths()
 	_build_dirs()
 	_write_version()
+	_load_setting()
 
 	http_sw_info_rq.request_completed.connect(
 			_on_sw_dw_info_completed)
@@ -284,13 +299,21 @@ func _ready():
 	multiverse.download_metaverse_requested.connect(
 			_on_download_metaverse_requested)
 
-	# current status
-	_set_status(STATUS_LOCAL.CHECK_INFO_SW_UPDATES_REQUESTED)
-	# starting flow status
-	_set_entry_0_status(STATUS_LOCAL.CHECK_INFO_SW_UPDATES_REQUESTED)
+	if _settings.autoupdate == true:
+		# current status
+		_set_status(STATUS_LOCAL.CHECK_INFO_SW_UPDATES_REQUESTED)
+		# starting flow status
+		_set_entry_0_status(STATUS_LOCAL.CHECK_INFO_SW_UPDATES_REQUESTED)
+	else:
+		# current status
+		_set_status(STATUS_LOCAL.START_REQUESTED)
+		# starting flow status
+		_set_entry_0_status(STATUS_LOCAL.START_REQUESTED)
+	
 #	DEBUG
 #	_set_status(STATUS_LOCAL.WAIT)
 #	_set_entry_0_status(STATUS_LOCAL.WAIT)
+
 	_is_ready = true
 
 
@@ -310,6 +333,9 @@ func _process(_delta):
 	if _is_ready and _local_lock != true:
 		if _status != STATUS_LOCAL.WAIT:
 			match _status:
+				STATUS_LOCAL.START_REQUESTED:
+					_start_requested()
+
 				STATUS_LOCAL.CHECK_INFO_SW_UPDATES_REQUESTED:
 					_check_info_sw_updates_requested(software)
 				
@@ -379,6 +405,7 @@ func _process(_delta):
 # ----- public methods
 
 # ----- private methods
+
 ## write version file
 func _write_version():
 		var json_data = JSON.stringify(M4DVERSION)
@@ -390,6 +417,54 @@ func _write_version():
 		if file != null:
 			file.store_string(json_data)
 			file.flush()
+
+
+## load and update settings
+func _load_setting():
+	var base_dir = OS.get_executable_path().get_base_dir()
+	if OS.has_feature('editor'):
+			base_dir = EDITOR_DBG_BASE_PATH
+	var file_name = base_dir + "/" + M4DNAME + "_conf.json"
+	if FileAccess.file_exists(file_name):
+		## TODO load settings
+		var file = FileAccess.open(file_name, FileAccess.READ)
+		if file != null:
+			var settings = file.get_as_text()
+			settings = JSON.parse_string(settings)
+			if settings != null:
+				_set_settings(settings)
+			file.close()
+	else:
+		## create default settings
+		var settings = JSON.stringify(_settings)
+		var file = FileAccess.open(file_name, FileAccess.WRITE)
+		if file != null:
+			file.store_string(settings)
+			file.flush()
+			file.close()
+
+	if _settings.insicure:
+		http_sw_info_rq.set_tls_options(_tls_opt)
+		http_sw_dw_rq.set_tls_options(_tls_opt)
+		http_mt_info_rq.set_tls_options(_tls_opt)
+		http_mt_dw_rq.set_tls_options(_tls_opt)
+		## create default settings
+
+	## update settings
+	var settings = JSON.stringify(_settings)
+	var file = FileAccess.open(file_name, FileAccess.WRITE)
+	if file != null:
+		file.store_string(settings)
+		file.flush()
+		file.close()
+
+
+## check and config internal settings
+func _set_settings(settings):
+	if "insicure" in settings:
+		if typeof(_settings.insicure) == TYPE_BOOL:
+			_settings.insicure = bool(settings.insicure)
+
 
 ## build dinamic paths
 func _build_paths():
@@ -407,7 +482,7 @@ func _build_paths():
 func _make_dir(path):
 	if _base_dir != null:
 		if _base_dir.dir_exists(path) == false:
-			var error = _base_dir.make_dir(path)
+			# var error = _base_dir.make_dir(path)
 			pass
 
 
@@ -489,19 +564,17 @@ func _write_core_version():
 ## prevent multiple instance
 func _block_istance():
 	## create server and prevent multiple instance
-	_server = TCPServer.new()
-	var error = _server.listen(BLOCK_ISTANCE_PORT, "127.0.0.1")
-	if error != OK:
-		get_tree().quit()
-#	## test on linux
-#	var dor = DirAccess.open('.')
-#	if dor.file_exists('poppo.lck'):
-#		if dor.remove('poppo.lck') == OK:
-#			FileAccess.open('aaa', FileAccess.WRITE)
-#		else:
-#			FileAccess.open('bbb', FileAccess.WRITE)
-#			get_tree().quit()
-#	poppo = FileAccess.open('poppo.lck', FileAccess.WRITE)
+	#_server = TCPServer.new()
+	#var error = _server.listen(BLOCK_ISTANCE_PORT, "127.0.0.1")
+	#if error != OK:
+		#get_tree().quit()
+	#var output = []
+	#OS.execute("tasklist", [], output )
+	#for line in output[0].split("\n"):
+		#if line.begins_with("chrome"):
+			#get_tree().quit()
+	#https://github.com/godotengine/godot/issues/18150
+	pass
 
 
 ## utility status to string
@@ -511,6 +584,8 @@ func _status_to_str():
 	match status:
 		STATUS_LOCAL.WAIT:
 			ret_val = "WAIT"
+		STATUS_LOCAL.START_REQUESTED:
+			ret_val = "START_REQUESTED"
 		STATUS_LOCAL.CHECK_INFO_SW_UPDATES_REQUESTED:
 			ret_val = "CHECK_INFO_SW_UPDATES_REQUESTED"
 		STATUS_LOCAL.SW_UPDATES_REQUESTED:
@@ -747,8 +822,6 @@ func _on_info_software_requested(
 	_set_status(STATUS_LOCAL.SW_INFO_REQUESTED)
 
 
-
-
 ## ENTRY 0 start software download
 func _on_software_dw_info_requested(
 		software_name, ext, sysop, tmp_dir, destination, which):
@@ -780,6 +853,17 @@ func _on_sw_search_updates_requested(which):
 func _on_sw_updates_requested(which):
 	_sw_updates_requested(which)
 
+## ENTRY 0 base start (no actions)
+func _start_requested():
+	_reset_info_and_wait()
+	software.enable_src_button()
+	# starting status
+	#_set_entry_0_status(STATUS_LOCAL.CHECK_INFO_SW_UPDATES_REQUESTED)
+	#_mapod4d_debug_status()
+	#_which = which
+	#_child_update_msg(tr("LOOKFORUPD"))
+	#_set_status(STATUS_LOCAL.SW_UPDATER_REQUEST_INIT)
+
 
 ## ENTRY 0 start software check updates
 func _check_info_sw_updates_requested(which):
@@ -790,6 +874,7 @@ func _check_info_sw_updates_requested(which):
 	_which = which
 	_child_update_msg(tr("LOOKFORUPD"))
 	_set_status(STATUS_LOCAL.SW_UPDATER_REQUEST_INIT)
+
 
 
 ## ENTRY 0 start search software updates
